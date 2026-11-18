@@ -71,6 +71,10 @@ class ScreenshotTest {
                 }
         }
     }
+    @Config(qualifiers = "w412dp-h2400dp-xxhdpi")
+    @Test fun about() = shot("13_ueber") { de.fembiond.app.ui.screens.AboutScreen(data, rememberNavController()) }
+    @Config(qualifiers = "w412dp-h2400dp-xxhdpi")
+    @Test fun guide() = shot("14_anleitung") { de.fembiond.app.ui.screens.GuideScreen(rememberNavController(), "unrest") }
     @Test fun more() = shot("09_mehr") { MoreScreen(data, rememberNavController()) }
     @Test fun export() = shot("10_export") { ExportScreen(it, data, rememberNavController()) }
     @Test fun settings() = shot("11_einstellungen") { SettingsScreen(it, data, rememberNavController()) }

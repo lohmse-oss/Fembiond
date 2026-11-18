@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,7 +62,7 @@ fun MedicationScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     var replacing by remember { mutableStateOf<MedicationPhase?>(null) }
     val today = data.today
 
-    Screen(title = "Medikation", nav = nav) {
+    Screen(title = "Medikation", nav = nav, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("meds")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         HintText("Jede Behandlungsphase hat Start und optional Ende. Ändert sich Dosis, Form oder Schema, beginnt eine neue Phase – die alte bleibt für Vorher/Nachher-Vergleiche erhalten.")
         Button(onClick = {
             editing = MedicationPhase(name = "", form = "oral", dose = "", schedule = ScheduleType.CYCLIC, cycleDayFrom = 14, cycleDayTo = 25, start = today)

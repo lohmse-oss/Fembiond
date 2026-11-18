@@ -243,6 +243,9 @@ private fun MedicationQuickStart(vm: AppViewModel, data: AppData) {
             HintText("Weitere oder andere Medikamente kannst du jederzeit unter Mehr → Medikation anlegen, ändern oder beenden.")
         }
     }
+    SectionCard(title = "Fast geschafft") {
+        Text("Eine ausführliche Anleitung findest du jederzeit unter Mehr → Anleitung, Versionsinfos unter Mehr → Über Fembiond. Tipp: Füge das Widget zum Startbildschirm hinzu.")
+    }
 }
 
 @Suppress("unused")

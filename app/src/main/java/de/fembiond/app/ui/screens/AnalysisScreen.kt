@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -149,7 +150,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
     }
     val pc = LocalPhaseColors.current
 
-    Screen(title = "Auswertung", nav = null) {
+    Screen(title = "Auswertung", nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("analysis")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         RangeAndFilter(data, range, { range = it }, categories, { categories = it })
         HintText("Zeitraum ${from.short()} – ${to.short()} · ${result.trackedDays} Tage mit Einträgen")
 

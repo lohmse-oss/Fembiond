@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
@@ -117,7 +118,7 @@ fun EventsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     val upcoming = data.events.filter { !it.date.isBefore(data.today) }.sortedBy { it.date }
     val past = data.events.filter { it.date.isBefore(data.today) }.sortedByDescending { it.date }
 
-    Screen(title = "Ereignisse", nav = nav) {
+    Screen(title = "Ereignisse", nav = nav, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("events")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         HintText("Plane Feiern, Essen gehen, Konzerte und Termine. Die App zeigt, in welche Zyklusphase sie voraussichtlich fallen, und wertet aus, wie sich die Unruhe davor entwickelt.")
         Button(onClick = { creating = true }, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(8.dp)); Text("Ereignis planen")

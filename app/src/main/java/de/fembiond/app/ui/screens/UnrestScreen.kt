@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -84,6 +85,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
     Screen(
         title = "Unruhe erfassen",
         nav = nav,
+        actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("unrest")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } },
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp)) {

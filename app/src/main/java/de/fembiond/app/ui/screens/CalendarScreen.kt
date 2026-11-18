@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -91,7 +92,7 @@ fun CalendarScreen(data: AppData, nav: NavController) {
     val unrestDays = data.episodes.groupBy { it.date }.mapValues { (_, l) -> l.maxOf { it.level } }
     val eventDays = data.events.map { it.date }.toSet()
 
-    Screen(title = "Kalender", nav = null) {
+    Screen(title = "Kalender", nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("calendar")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         SectionCard(container = MaterialTheme.colorScheme.surfaceContainerLowest) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { month = ym.minusMonths(1).toString() }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Vorheriger Monat") }

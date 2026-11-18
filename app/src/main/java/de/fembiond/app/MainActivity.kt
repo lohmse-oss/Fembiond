@@ -135,6 +135,9 @@ object Routes {
     const val ENTRY = "entry?day={day}&note={note}"
     const val UNREST = "unrest?event={event}&day={day}"
     const val EVENTS = "events"
+    const val ABOUT = "about"
+    const val GUIDE = "guide?open={open}"
+    fun guide(open: String? = null) = "guide?open=${open ?: ""}"
     const val DAY = "day/{day}"
     const val MEDS = "meds"
     const val EXPORT = "export"
@@ -195,6 +198,8 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
                 UnrestScreen(vm, data, nav, ev, day)
             }
             composable(Routes.EVENTS) { EventsScreen(vm, data, nav) }
+            composable(Routes.ABOUT) { de.fembiond.app.ui.screens.AboutScreen(data, nav) }
+            composable(Routes.GUIDE) { b -> de.fembiond.app.ui.screens.GuideScreen(nav, b.arguments?.getString("open")?.takeIf { it.isNotBlank() }) }
             composable(Routes.DAY) { b ->
                 DayScreen(vm, data, nav, LocalDate.ofEpochDay(b.arguments?.getString("day")!!.toLong()))
             }

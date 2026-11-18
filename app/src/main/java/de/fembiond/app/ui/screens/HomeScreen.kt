@@ -80,6 +80,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 ChipFlow {
                     Button(onClick = { nav.navigate(Routes.HISTORY) }) { Text("Perioden nachtragen") }
                     OutlinedButton(onClick = { vm.run { startPeriod(today) } }) { Text("Periode heute") }
+                    TextButton(onClick = { nav.navigate(Routes.guide("start")) }) { Text("Anleitung") }
                 }
             }
         } else {
@@ -200,6 +201,13 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                     val days = daysBetween(today, r)
                     if (days in 0..14) HintText("Neubefund/Arzttermin ${relativeDays(today, r)} (${r.dm()}). Den Arztbericht kannst du unter Mehr → Export erstellen.")
                 }
+            }
+        }
+
+        if (data.entries.size < 5 && current != null) {
+            SectionCard(title = "Neu hier?", icon = Icons.Rounded.Info) {
+                HintText("Die Anleitung erklärt in wenigen Minuten Eingabe, Unruhe-Stufen, Ereignisse und Auswertung.")
+                TextButton(onClick = { nav.navigate(Routes.guide("start")) }) { Text("Anleitung öffnen") }
             }
         }
 

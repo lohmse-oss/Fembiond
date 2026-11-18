@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.Medication
@@ -76,6 +78,11 @@ fun MoreScreen(data: AppData, nav: NavController) {
             MoreItem(Icons.AutoMirrored.Rounded.Label, "Begriffe verwalten", "Umbenennen, Kategorie ändern, ausblenden") { nav.navigate(Routes.TERMS) }
             HorizontalDivider()
             MoreItem(Icons.Rounded.Settings, "Einstellungen", "Darstellung, App-Sperre, Erinnerungen, Grunddaten") { nav.navigate(Routes.SETTINGS) }
+        }
+        SectionCard {
+            MoreItem(Icons.AutoMirrored.Rounded.MenuBook, "Anleitung", "So funktioniert Fembiond – Schritt für Schritt") { nav.navigate(Routes.guide()) }
+            HorizontalDivider()
+            MoreItem(Icons.Rounded.Info, "Über Fembiond", "Version ${de.fembiond.app.BuildConfig.VERSION_NAME}, Neuerungen, Updates, Datenschutz") { nav.navigate(Routes.ABOUT) }
         }
         HintText("Fembiond speichert alle Daten verschlüsselt und ausschließlich auf diesem Gerät. Die App stellt keine Diagnosen.")
     }

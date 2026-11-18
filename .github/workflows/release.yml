@@ -30,7 +30,7 @@ jobs:
         run: |
           V=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
           echo "TAG=v$V" >> "$GITHUB_ENV"
-          test -f "docs/releases/v$V.md"
+          test -f "app/src/main/assets/releases/v$V.md"
 
       - name: Tests
         run: ./gradlew :app:testDebugUnitTest --no-daemon
@@ -47,5 +47,5 @@ jobs:
           tag_name: ${{ env.TAG }}
           target_commitish: ${{ github.sha }}
           name: Fembiond ${{ env.TAG }}
-          body_path: docs/releases/${{ env.TAG }}.md
+          body_path: app/src/main/assets/releases/${{ env.TAG }}.md
           files: Fembiond-${{ env.TAG }}.apk
