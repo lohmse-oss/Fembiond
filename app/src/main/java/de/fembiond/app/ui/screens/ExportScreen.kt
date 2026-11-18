@@ -105,7 +105,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         }
     }
 
-    Screen(title = "Export & Sicherung", nav = nav) {
+    Screen(title = "Export & Sicherung", jumpBar = true, nav = nav) {
         RangeAndFilter(data, range, { range = it }, categories, { categories = it })
         HintText("Zeitraum ${from.short()} – ${to.short()}. Exporte enthalten keine Namen. Geteilt wird nur, was du selbst teilst.")
 

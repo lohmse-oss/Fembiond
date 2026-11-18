@@ -212,7 +212,7 @@ fun WeekStrip(days: List<StripDay>, today: LocalDate, onDay: (LocalDate) -> Unit
         items(days, key = { it.date.toEpochDay() }) { d ->
             val isToday = d.date == today
             Column(
-                Modifier.width(44.dp).clip(RoundedCornerShape(14.dp))
+                Modifier.width(44.dp).sharedDay(d.date).clip(RoundedCornerShape(14.dp))
                     .background(if (isToday) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest)
                     .then(if (isToday) Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(14.dp)) else Modifier)
                     .clickable { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); onDay(d.date) }

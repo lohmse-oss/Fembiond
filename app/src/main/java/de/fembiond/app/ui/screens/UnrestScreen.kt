@@ -87,6 +87,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
     Screen(
         title = "Unruhe erfassen",
         nav = nav,
+        jumpBar = true,
         actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("unrest")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } },
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
@@ -101,6 +102,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
                             nav.popBackStack()
                         },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
+                        shapes = de.fembiond.app.ui.morphShapes(),
                         colors = if (l == 5) ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError)
                         else ButtonDefaults.buttonColors(),
                     ) { Text(if (l == null) "Stufe wählen" else "Speichern", style = MaterialTheme.typography.titleMedium) }
@@ -109,27 +111,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
         },
     ) {
         SectionCard(title = "Wie stark ist die Unruhe?", icon = Icons.Rounded.Waves) {
-            UnrestLevel.entries.forEach { u ->
-                val selected = level == u.level
-                Card(
-                    onClick = { haptic.performHapticFeedback(if (u.level >= 4) HapticFeedbackType.LongPress else HapticFeedbackType.SegmentTick); level = u.level },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    border = if (selected) BorderStroke(2.dp, unrestColor(u.level)) else null,
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
-                    ),
-                ) {
-                    Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                        LevelBadge(u.level)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(u.label, style = MaterialTheme.typography.titleSmall)
-                            Text(u.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
+            de.fembiond.app.ui.UnrestLevelPicker(level, { level = it })
         }
 
         SectionCard(title = "Hängt es mit einem Ereignis zusammen?", icon = Icons.Rounded.Event) {

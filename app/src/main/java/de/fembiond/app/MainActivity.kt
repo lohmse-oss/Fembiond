@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.animation.ExperimentalSharedTransitionApi::class)
+
 package de.fembiond.app
 
 import android.Manifest
@@ -69,10 +71,13 @@ import java.time.LocalDate
 class MainActivity : FragmentActivity() {
 
     private var unlocked by mutableStateOf(false)
+    /** Ziel aus Abkürzung, Kachel oder Benachrichtigung; wird nach dem Navigieren geleert. */
+    private var pendingRoute by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        pendingRoute = intent?.getStringExtra(EXTRA_ROUTE)
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
@@ -82,17 +87,23 @@ class MainActivity : FragmentActivity() {
             val vm: AppViewModel = viewModel()
             val data by vm.data.collectAsState()
             val d = data
-            FembiondTheme(d?.settings?.theme ?: de.fembiond.app.data.ThemeMode.SYSTEM) {
+            FembiondTheme(d?.settings?.theme ?: de.fembiond.app.data.ThemeMode.SYSTEM, d?.settings?.dynamicColor ?: false) {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     when {
-                        d == null -> Box(Modifier.fillMaxSize())
+                        d == null -> de.fembiond.app.ui.AppLoading()
                         d.settings.lockEnabled && !unlocked -> LockScreen { authenticate() }
                         !d.settings.onboardingDone -> OnboardingScreen(vm, d)
-                        else -> AppNav(vm, d, intent?.getStringExtra(EXTRA_ROUTE))
+                        else -> AppNav(vm, d, pendingRoute) { pendingRoute = null }
                     }
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(EXTRA_ROUTE)?.let { pendingRoute = it }
     }
 
     override fun onStop() {
@@ -137,6 +148,7 @@ object Routes {
     const val EVENTS = "events"
     const val ABOUT = "about"
     const val MRS = "mrs"
+    const val SEARCH = "search"
     const val WEEKLY = "weekly"
     const val GUIDE = "guide?open={open}"
     fun guide(open: String? = null) = "guide?open=${open ?: ""}"
@@ -163,11 +175,16 @@ private val tabs = listOf(
 )
 
 @Composable
-private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
+private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?, onRouteHandled: () -> Unit) {
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
-    LaunchedEffect(startRoute) { if (startRoute != null) nav.navigate(startRoute) }
+    LaunchedEffect(startRoute) {
+        if (startRoute != null) {
+            if (startRoute != Routes.HOME) runCatching { nav.navigate(startRoute) }
+            onRouteHandled()
+        }
+    }
     Scaffold(
         bottomBar = {
             if (tabs.any { it.route == current }) {
@@ -184,6 +201,8 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
             }
         },
     ) { pad ->
+        androidx.compose.animation.SharedTransitionLayout {
+        androidx.compose.runtime.CompositionLocalProvider(de.fembiond.app.ui.LocalSharedScope provides this) {
         NavHost(
             nav, Routes.HOME, Modifier.padding(bottom = pad.calculateBottomPadding()),
             enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) + androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(260)) { it / 12 } },
@@ -191,8 +210,8 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
             popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) },
             popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) + androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { it / 12 } },
         ) {
-            composable(Routes.HOME) { HomeScreen(vm, data, nav) }
-            composable(Routes.CALENDAR) { CalendarScreen(data, nav) }
+            composable(Routes.HOME) { de.fembiond.app.ui.ProvideNavAnim(this) { HomeScreen(vm, data, nav) } }
+            composable(Routes.CALENDAR) { de.fembiond.app.ui.ProvideNavAnim(this) { CalendarScreen(data, nav) } }
             composable(Routes.ANALYSIS) { AnalysisScreen(data, nav) }
             composable(Routes.MORE) { MoreScreen(data, nav) }
             composable(Routes.ENTRY) { b ->
@@ -206,12 +225,13 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
                 UnrestScreen(vm, data, nav, ev, day)
             }
             composable(Routes.EVENTS) { EventsScreen(vm, data, nav) }
+            composable(Routes.SEARCH) { de.fembiond.app.ui.screens.SearchScreen(data, nav) }
             composable(Routes.MRS) { de.fembiond.app.ui.screens.MrsScreen(vm, data, nav) }
             composable(Routes.WEEKLY) { de.fembiond.app.ui.screens.WeeklyReviewScreen(data, nav) }
             composable(Routes.ABOUT) { de.fembiond.app.ui.screens.AboutScreen(data, nav) }
             composable(Routes.GUIDE) { b -> de.fembiond.app.ui.screens.GuideScreen(nav, b.arguments?.getString("open")?.takeIf { it.isNotBlank() }) }
             composable(Routes.DAY) { b ->
-                DayScreen(vm, data, nav, LocalDate.ofEpochDay(b.arguments?.getString("day")!!.toLong()))
+                de.fembiond.app.ui.ProvideNavAnim(this) { DayScreen(vm, data, nav, LocalDate.ofEpochDay(b.arguments?.getString("day")!!.toLong())) }
             }
             composable(Routes.MEDS) { MedicationScreen(vm, data, nav) }
             composable(Routes.EXPORT) { ExportScreen(vm, data, nav) }
@@ -219,6 +239,8 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
             composable(Routes.TERMS) { TermsScreen(vm, data, nav) }
             composable(Routes.GAD) { GadScreen(vm, data, nav) }
             composable(Routes.HISTORY) { HistoryScreen(vm, data, nav) }
+        }
+        }
         }
     }
 }

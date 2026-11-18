@@ -124,7 +124,7 @@ fun EventsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(8.dp)); Text("Ereignis planen")
         }
         SectionCard(title = "Anstehend", icon = Icons.Rounded.EventAvailable) {
-            if (upcoming.isEmpty()) HintText("Nichts geplant.")
+            if (upcoming.isEmpty()) EmptyState(Icons.Rounded.Event, "Nichts geplant", "Plane Feiern, Essen gehen oder Konzerte – die App zeigt dann, in welche Zyklusphase sie fallen, und hilft bei der Vorbereitung.")
             upcoming.forEachIndexed { i, e ->
                 if (i > 0) HorizontalDivider()
                 EventItem(e, data, onClick = { editing = e })

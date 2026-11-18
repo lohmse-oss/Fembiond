@@ -74,6 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import de.fembiond.app.domain.Category
+import de.fembiond.app.ui.screens.jumpAnchor
 import de.fembiond.app.domain.CurrentState
 import de.fembiond.app.domain.CycleEngine
 import de.fembiond.app.domain.Heatmap
@@ -114,7 +115,7 @@ fun SectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().jumpAnchor(title),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = container),
     ) {

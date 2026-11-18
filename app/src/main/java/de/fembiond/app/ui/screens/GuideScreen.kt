@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.Analytics
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Backup
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.EditNote
@@ -56,6 +57,14 @@ object Guide {
 - Lege unter **Mehr → Medikation** laufende Medikamente als Behandlungsphase an (z. B. Progesteron, Zyklustag 14–25).
 - Füge das **Widget** zum Startbildschirm hinzu – dann reicht ein Blick und ein Tipp.
 """.trimIndent()),
+        GuideSection("capture", "Schnell erfassen: Plus-Menü & Abkürzungen", Icons.Rounded.Add, """
+- Der runde **Plus-Knopf** unten rechts auf dem Startbildschirm öffnet: **Wie geht es dir?**, **Unruhe**, **Beschwerde**, **Notiz** und **Ereignis planen**.
+- **Unruhe** und **Beschwerde** öffnen sich als Fenster von unten – Stufe bzw. Beschwerde antippen, fertig, ohne den Startbildschirm zu verlassen. „Mehr Details“ führt zur ausführlichen Erfassung.
+- **App-Symbol lange drücken:** direkt zu Unruhe, Befinden, Wochenrückblick oder Suche.
+- **Schnelleinstellungen** (vom oberen Rand nach unten wischen, Stift-Symbol): Kachel „Unruhe erfassen“ hinzufügen.
+- **Benachrichtigungen:** Bei der Einnahme-Erinnerung direkt „Eingenommen“ antippen, bei der Erinnerung an ein Ereignis „Unruhe erfassen“.
+- **Suche** (Lupe auf dem Startbildschirm und im Kalender): findet Begriffe, Notizen, Unruhe-Episoden und Ereignisse, z. B. „Migräne“ oder „Konzert“.
+""".trimIndent()),
         GuideSection("home", "Startbildschirm & Zyklusring", Icons.Rounded.Spa, """
 - Der Ring zeigt den aktuellen Zyklus: ein Segment pro Tag, eingefärbt nach Phase. Vergangene Tage sind kräftig, kommende blass. Der Punkt markiert heute.
 - Kleine Punkte innen markieren Einnahmetage laut Medikationsschema, das gestrichelte Band außen das geschätzte fruchtbare Fenster.
@@ -65,7 +74,8 @@ object Guide {
 - **Tag im Ring antippen** zeigt eine Kurzinfo zu diesem Tag. Farbige Punkte außen am Ring markieren Unruhe – je größer und röter, desto stärker.
 - Der Kopfbereich ist in der Farbe der aktuellen Phase hinterlegt.
 - Der **Wochenstreifen** unter dem Ring zeigt die letzten Tage mit Phase (Balken), Unruhe (Punkt) und Schlafqualität (Mond). Nach links wischen für frühere Wochen, antippen öffnet den Tag.
-- **Letzte 14 Tage**: kleine Verläufe für Unruhe, Schlaf, Energie und Hitzewallungen.
+- **Letzte 14 Tage**: kleine Verläufe für Unruhe, Schlaf, Energie und Perimenopause-Beschwerden.
+- **Heute wichtig**: wischbare Karten mit allem, was gerade zählt – Belastungshinweise, PMS-Tage, Wochenrückblick, Arzttermin, fällige Fragebögen und eine aktuelle Erkenntnis.
 """.trimIndent()),
         GuideSection("planning", "Belastungshinweis", Icons.Rounded.TipsAndUpdates, """
 - Für Ereignisse in den nächsten 7 Tagen prüft die App, ob mehrere Belastungen zusammenkommen:
@@ -134,6 +144,7 @@ object Guide {
 - Tag antippen für Details, Löschen, Nachtragen und um Periodenbeginn oder -ende zu korrigieren.
 """.trimIndent()),
         GuideSection("analysis", "Auswertung verstehen", Icons.Rounded.Analytics, """
+- Die Auswertung ist in **Reiter** gegliedert: Überblick, Zyklus, Unruhe, PMS und Perimenopause. Reiter ohne Daten werden nicht angezeigt.
 - Oben wählst du **Zeitraum** (z. B. 6 Monate oder „unter Progesteron“) und **Bereiche** (Geist, Körper, Perimenopause, Schlaf, Leben, Medikation). Mit einem Bereich gefiltert, zeigt die Auswertung nur die passenden Karten – „Alle zeigen“ hebt den Filter auf.
 - **Erkenntnisse** fassen auffällige Muster in Sätzen zusammen – mit Hinweis, wenn es noch zu wenige Daten gibt.
 - **Zykluslänge**: Balken pro Zyklus (Beere = Periode). Warnsymbol = deutliche Abweichung, Kapsel = unter Medikation.
@@ -144,6 +155,7 @@ object Guide {
 - **Jahresübersicht**: ein Kästchen pro Tag der letzten 12 Monate, gefärbt nach Unruhe; Periodentage umrandet.
 - **Zyklen übereinander**: die letzten Zyklen nach Zyklustag übereinandergelegt (Unruhe, Schlaf, Energie oder Hitzewallungen). Die kräftige Linie ist der Mittelwert.
 - **Zusammenhänge** sind Hinweise, keine Beweise für Ursachen.
+- Die **Sprungleiste** (Lesezeichen-Symbol) unter dem Titel führt direkt zu einem Bereich. Nach etwas Scrollen erscheint unten rechts eine Taste **nach oben** – das gibt es auf allen langen Seiten.
 - Es erscheinen nur Auswertungen, zu denen es Einträge gibt. Je mehr du erfasst, desto mehr Bereiche kommen dazu.
 """.trimIndent()),
         GuideSection("terms", "Begriffe verwalten", Icons.AutoMirrored.Rounded.Label, """

@@ -19,6 +19,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Medication
 import androidx.compose.material.icons.rounded.Waves
@@ -54,6 +56,7 @@ import de.fembiond.app.ui.HintText
 import de.fembiond.app.ui.PhaseLegend
 import de.fembiond.app.ui.SectionCard
 import de.fembiond.app.ui.TermChip
+import de.fembiond.app.ui.sharedDay
 import de.fembiond.app.ui.hm
 import de.fembiond.app.ui.icon
 import de.fembiond.app.ui.monthYear
@@ -92,7 +95,10 @@ fun CalendarScreen(data: AppData, nav: NavController) {
     val unrestDays = data.episodes.groupBy { it.date }.mapValues { (_, l) -> l.maxOf { it.level } }
     val eventDays = data.events.map { it.date }.toSet()
 
-    Screen(title = "Kalender", nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("calendar")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
+    Screen(title = "Kalender", nav = null, actions = {
+        androidx.compose.material3.IconButton(onClick = { nav.navigate(Routes.SEARCH) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Search, "Suchen") }
+        androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("calendar")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") }
+    }) {
         SectionCard(container = MaterialTheme.colorScheme.surfaceContainerLowest) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { month = ym.minusMonths(1).toString() }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Vorheriger Monat") }
@@ -122,7 +128,7 @@ fun CalendarScreen(data: AppData, nav: NavController) {
                                     else -> Color.Transparent
                                 }
                                 Column(
-                                    Modifier.fillMaxWidth().clip(MaterialTheme.shapes.small).clickable { nav.navigate(Routes.day(d)) },
+                                    Modifier.fillMaxWidth().sharedDay(d).clip(MaterialTheme.shapes.small).clickable { nav.navigate(Routes.day(d)) },
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                 ) {
                                     Box(
@@ -186,7 +192,7 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
     val dayEvents = data.events.filter { it.date == date }
 
     Screen(title = date.weekdayLong(), nav = nav) {
-        SectionCard {
+        SectionCard(modifier = Modifier.sharedDay(date)) {
             if (info != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(info.phase.icon(), null, tint = pc.of(info.phase))
@@ -256,6 +262,10 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
             }
         }
 
+        if (entries.isEmpty() && panics.isEmpty() && dayEvents.isEmpty()) {
+            EmptyState(Icons.Rounded.EditNote, if (date.isAfter(data.today)) "Noch in der Zukunft" else "Keine Einträge",
+                if (date.isAfter(data.today)) "Für diesen Tag kannst du ein Ereignis planen." else "Für diesen Tag wurde noch nichts erfasst. Du kannst es hier nachtragen.")
+        }
         if (!date.isAfter(data.today)) {
             Button(onClick = { nav.navigate(Routes.entry(date)) }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(8.dp)); Text("Eintrag für diesen Tag")

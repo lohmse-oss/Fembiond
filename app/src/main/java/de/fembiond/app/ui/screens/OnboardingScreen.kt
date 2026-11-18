@@ -172,6 +172,7 @@ fun HistoryEditor(vm: AppViewModel, data: AppData) {
     val periods = data.periods.sortedByDescending { it.start }
     val complete = (data.periods.size - 1).coerceAtLeast(0)
     SectionCard(title = "Erfasst: ${data.periods.size} Perioden · $complete vollständige Zyklen") {
+        if (data.periods.isEmpty()) EmptyState(Icons.Rounded.History, "Noch keine Perioden", "Trage oben vergangene Perioden aus deinen Notizen ein – je mehr, desto genauer die Prognose.")
         LinearProgressIndicator(progress = { (complete / 6f).coerceAtMost(1f) }, modifier = Modifier.fillMaxWidth())
         HintText(
             when {

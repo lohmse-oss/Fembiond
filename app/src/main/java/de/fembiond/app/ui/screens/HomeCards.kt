@@ -1,6 +1,23 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MedicalServices
+import androidx.compose.material.icons.rounded.Mood
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.Quiz
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.runtime.remember
+import de.fembiond.app.ui.dm
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.FloatingActionButtonMenuItem
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -182,5 +199,144 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
             Text("Menopause-Fragebogen (MRS) ist wieder dran – 11 kurze Fragen.", style = MaterialTheme.typography.bodyMedium)
             FilledTonalButton(onClick = { nav.navigate(Routes.MRS) }) { Text("Jetzt ausfüllen") }
         } else TextButton(onClick = { nav.navigate(Routes.MRS) }) { Text("MRS-Fragebogen") }
+    }
+}
+
+/** Ein Hinweis in „Heute wichtig“. */
+data class TodayItem(
+    val key: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val title: String,
+    val text: String,
+    val action: String?,
+    val emphasized: Boolean = false,
+    val onAction: () -> Unit = {},
+)
+
+fun todayItems(data: AppData, nav: NavController): List<TodayItem> {
+    val s = data.summary
+    val today = data.today
+    val out = mutableListOf<TodayItem>()
+    de.fembiond.app.domain.StressForecast.upcoming(s, data.events, data.episodes, data.occurrences, today).forEach { r ->
+        out += TodayItem("risk-${r.event.id}", Icons.Rounded.TipsAndUpdates,
+            (if (r.elevated) "Gut vorbereiten: " else "Hinweis: ") + r.event.displayName,
+            "${relativeDays(today, r.event.date).replaceFirstChar { it.uppercase() }}: " + r.factors.first().replaceFirstChar { it.uppercase() } + ". " + r.tips.first() + ".",
+            "Details", r.elevated) { nav.navigate(Routes.EVENTS) }
+    }
+    val c = s.current
+    if (c != null && !c.inPeriod && c.prediction.overdueDays == 0 && de.fembiond.app.domain.daysBetween(today, c.prediction.from) in 0..5) {
+        val pms = de.fembiond.app.domain.Pms.analyze(s, data.occurrences, data.episodes, today)
+        if (pms.typical > 0 && pms.typicalSymptoms.isNotEmpty()) out += TodayItem("pms", Icons.Rounded.Psychology, "Die Tage vor der Periode",
+            "Bisher oft: ${pms.typicalSymptoms.joinToString()}. Etwas mehr Ruhe und weniger Termine können helfen.", "PMS-Auswertung") { nav.navigate(Routes.ANALYSIS) }
+    }
+    if (data.settings.weeklyReview && (today.dayOfWeek == java.time.DayOfWeek.SUNDAY || today.dayOfWeek == java.time.DayOfWeek.MONDAY)) {
+        val review = de.fembiond.app.domain.WeeklyReviewBuilder.build(s, data.occurrences, data.episodes, data.events,
+            if (today.dayOfWeek == java.time.DayOfWeek.MONDAY) today.minusDays(1) else today)
+        out += TodayItem("weekly", Icons.Rounded.AutoStories, "Dein Wochenrückblick", de.fembiond.app.domain.WeeklyReviewBuilder.shortText(review), "Ansehen") { nav.navigate(Routes.WEEKLY) }
+    }
+    data.medications.filter { it.activeOn(today) }.forEach { m ->
+        m.reviewDate?.let { r ->
+            val d = de.fembiond.app.domain.daysBetween(today, r)
+            if (d in 0..14) out += TodayItem("review-${m.id}", Icons.Rounded.MedicalServices, "Arzttermin ${relativeDays(today, r)}",
+                "Neubefund zu ${m.name} am ${r.dm()} – den Arztbericht kannst du vorher als PDF erstellen.", "Arztbericht") { nav.navigate(Routes.EXPORT) }
+        }
+    }
+    if (s.straw == de.fembiond.app.domain.StrawStage.EARLY || s.straw == de.fembiond.app.domain.StrawStage.LATE)
+        out += TodayItem("straw", Icons.Rounded.Info, s.straw.label, s.straw.description, "Perimenopause") { nav.navigate(Routes.ANALYSIS) }
+    if (data.gadDue && data.occurrences.size > 3)
+        out += TodayItem("gad", Icons.Rounded.Quiz, "Kurzer Angst-Check (GAD-7)", "7 Fragen zu den letzten zwei Wochen – ergibt einen vergleichbaren Wert über die Monate.", "Ausfüllen") { nav.navigate(Routes.GAD) }
+    if (data.mrsDue && data.occurrences.size > 3)
+        out += TodayItem("mrs", Icons.Rounded.LocalFireDepartment, "Menopause-Fragebogen (MRS)", "11 kurze Fragen zu Beschwerden – alle 4 Wochen für den Verlauf.", "Ausfüllen") { nav.navigate(Routes.MRS) }
+    val insight = de.fembiond.app.domain.Analytics.analyze(
+        de.fembiond.app.domain.AnalysisInput(s, data.occurrences, data.episodes, data.medications, data.gad, today.minusDays(120), today, events = data.events)
+    ).insights.firstOrNull { !it.startsWith("Bisher gibt es") && !it.startsWith("Der übliche Zyklus") && !it.contains("STRAW") }
+    if (insight != null) out += TodayItem("insight", Icons.Rounded.AutoAwesome, "Erkenntnis", insight, "Auswertung") { nav.navigate(Routes.ANALYSIS) }
+    if (data.entries.size < 5) out += TodayItem("new", Icons.Rounded.Info, "Neu hier?", "Die Anleitung erklärt in wenigen Minuten Eingabe, Unruhe-Stufen, Ereignisse und Auswertung.", "Anleitung") { nav.navigate(Routes.guide("start")) }
+    return out
+}
+
+/** „Heute wichtig“: wischbare Karten statt vieler Karten untereinander. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun TodayCarousel(data: AppData, nav: NavController) {
+    val items = remember(data) { todayItems(data, nav) }
+    if (items.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Heute wichtig" + if (items.size > 1) " · ${items.size}" else "", style = MaterialTheme.typography.titleMedium)
+        if (items.size == 1) TodayCard(items.first(), Modifier.fillMaxWidth())
+        else androidx.compose.material3.carousel.HorizontalUncontainedCarousel(
+            state = androidx.compose.material3.carousel.rememberCarouselState { items.size },
+            itemWidth = 296.dp,
+            itemSpacing = 10.dp,
+            modifier = Modifier.fillMaxWidth().height(196.dp),
+        ) { i -> TodayCard(items[i], Modifier.fillMaxSize().maskClip(MaterialTheme.shapes.extraLarge)) }
+    }
+}
+
+@Composable
+private fun TodayCard(item: TodayItem, modifier: Modifier) {
+    Card(
+        modifier.height(196.dp),
+        shape = MaterialTheme.shapes.extraLarge,
+        colors = CardDefaults.cardColors(containerColor = if (item.emphasized) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(Modifier.padding(18.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(item.icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            }
+            Text(item.text, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            item.action?.let { TextButton(onClick = item.onAction, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text(it) } }
+        }
+    }
+}
+
+/** Plus-Menü (Material 3 Expressive): alle Erfassungen an einer Stelle. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun CaptureFabMenu(
+    open: Boolean,
+    onOpen: (Boolean) -> Unit,
+    onEntry: () -> Unit,
+    onUnrest: () -> Unit,
+    onSymptom: () -> Unit,
+    onNote: () -> Unit,
+    onEvent: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = LocalHapticFeedback.current
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+        if (open) androidx.compose.foundation.layout.Box(
+            Modifier.fillMaxSize().background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.32f))
+                .clickable(interactionSource = null, indication = null) { onOpen(false) }
+        )
+        androidx.compose.material3.FloatingActionButtonMenu(
+            expanded = open,
+            button = {
+                androidx.compose.material3.ToggleFloatingActionButton(
+                    checked = open,
+                    onCheckedChange = { haptic.performHapticFeedback(HapticFeedbackType.ContextClick); onOpen(it) },
+                ) {
+                    val icon = if (checkedProgress > 0.5f) Icons.Rounded.Close else Icons.Rounded.Add
+                    Icon(icon, if (open) "Schließen" else "Erfassen", with(androidx.compose.material3.ToggleFloatingActionButtonDefaults) { Modifier.animateIcon({ checkedProgress }) })
+                }
+            },
+            modifier = modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 4.dp),
+        ) {
+            listOf(
+                Triple("Wie geht es dir?", Icons.Rounded.Mood, onEntry),
+                Triple("Unruhe", Icons.Rounded.Waves, onUnrest),
+                Triple("Beschwerde", Icons.Rounded.LocalFireDepartment, onSymptom),
+                Triple("Notiz", Icons.Rounded.EditNote, onNote),
+                Triple("Ereignis planen", Icons.Rounded.Event, onEvent),
+            ).forEach { (label, icon, action) ->
+                FloatingActionButtonMenuItem(
+                    onClick = { onOpen(false); action() },
+                    text = { Text(label) },
+                    icon = { Icon(icon, null) },
+                )
+            }
+        }
     }
 }
