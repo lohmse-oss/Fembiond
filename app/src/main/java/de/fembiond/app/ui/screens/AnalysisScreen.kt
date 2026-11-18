@@ -362,14 +362,21 @@ fun PerimenopauseCard(data: AppData, from: java.time.LocalDate, to: java.time.Lo
             if (stats.size > 6) androidx.compose.material3.TextButton(onClick = { showAll = !showAll }) {
                 Text(if (showAll) "Weniger anzeigen" else "Alle ${stats.size} Beschwerden anzeigen")
             }
-            val months = generateSequence(java.time.YearMonth.from(from)) { it.plusMonths(1) }.takeWhile { !it.isAfter(java.time.YearMonth.from(to)) }.toList()
             val periDays = data.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.SYMPTOMS && !it.date.isBefore(from) && !it.date.isAfter(to) }
                 .map { it.date }.toSet()
-            if (months.size >= 2 && periDays.size >= 3) {
-                Text("Tage mit Beschwerden pro Monat", style = MaterialTheme.typography.labelLarge)
-                LineChart(months.map { m -> periDays.count { java.time.YearMonth.from(it) == m }.toDouble() },
-                    months.map { "%02d/%02d".format(it.monthValue, it.year % 100) }, 0.0,
-                    months.maxOf { m -> periDays.count { java.time.YearMonth.from(it) == m } }.coerceAtLeast(4).toDouble(), pc.follicular)
+            val trackedAll = (data.occurrences.map { it.date } + data.episodes.map { it.date }).filter { !it.isBefore(from) && !it.isAfter(to) }.toSet()
+            if (periDays.size >= 3) {
+                val mon = { d: java.time.LocalDate -> d.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY)) }
+                val weeks = generateSequence(mon(trackedAll.min())) { it.plusWeeks(1) }.takeWhile { !it.isAfter(mon(trackedAll.max())) }.toList()
+                fun inW(w: java.time.LocalDate, d: java.time.LocalDate) = !d.isBefore(w) && !d.isAfter(w.plusDays(6))
+                if (weeks.size >= 2) {
+                    Text("Tage mit Beschwerden pro Kalenderwoche", style = MaterialTheme.typography.labelLarge)
+                    LineChart(
+                        weeks.map { w -> if (trackedAll.any { inW(w, it) }) periDays.count { inW(w, it) }.toDouble() else null },
+                        weeks.map { "KW ${it.get(java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR)}" }, 0.0, 7.0, pc.follicular,
+                    )
+                    HintText("Lücken = Wochen ohne Einträge.")
+                }
             }
         }
         if (mrs.isNotEmpty()) {
@@ -407,7 +414,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
     var tabKey by rememberSaveable { mutableStateOf("overview") }
     val hasYear = showMind && data.episodes.any { !it.date.isBefore(from) && !it.date.isAfter(to) }
     val hasTrends = result.trends.size >= 2 && (
-        (showMind && result.trends.any { it.unrestCount > 0 || it.gad != null }) ||
+        (showMind && result.trends.any { (it.unrestCount ?: 0) > 0 || it.gad != null }) ||
             (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
     val periStats = de.fembiond.app.domain.PeriStats.symptomStats(data.occurrences, from, to)
     val tabs = buildList {
@@ -529,15 +536,25 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                 }
                 HorizontalDivider()
                 val max = result.unrestByPhase.maxOf { it.count }.coerceAtLeast(1)
-                result.unrestByPhase.forEach { p ->
+                result.unrestByPhase.filter { it.count > 0 || it.daysTracked > 0 }.forEach { p ->
                     RatioBar(
                         p.phase.label, p.count.toDouble() / max,
-                        listOfNotNull("${p.count}", p.meanLevel?.let { "Ø ${it.fmt1()}" }, p.relativeFrequency?.let { "${it.fmt1()}×" }).joinToString(" · "),
+                        listOfNotNull("${p.count}×", p.meanLevel?.let { "Ø Stufe ${it.fmt1()}" }).joinToString(" · "),
                         pc.of(p.phase), p.phase.icon(),
                     )
-                    if (p.panicCount > 0) HintText("davon ${p.panicCount}× Panikattacke")
+                    HintText(listOfNotNull(
+                        "Unruhe an ${p.daysWithUnrest} von ${p.daysTracked} erfassten Tagen",
+                        p.relativeFrequency?.let { "${it.fmt1()}× so häufig wie im Schnitt" },
+                        p.panicCount.takeIf { it > 0 }?.let { "davon ${it}× Panik" },
+                    ).joinToString(" · "))
                 }
-                HintText("Anzahl · mittlere Stufe · relative Häufigkeit (1× = Durchschnitt, berücksichtigt die Länge der Phasen).")
+                HintText("Ø Stufe = Mittelwert nur über die erfassten Unruhe-Episoden. Tage ohne Einträge fließen nirgends ein.")
+                if (result.calmDays < de.fembiond.app.domain.Analytics.MIN_CALM_DAYS) {
+                    Text(
+                        "Bisher wurden fast nur Tage mit Unruhe erfasst. Ob Unruhe in einer Phase häufiger ist, lässt sich erst vergleichen, wenn auch ruhige Tage eingetragen sind – dafür beim Erfassen „Heute keine Unruhe“ antippen.",
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
 
@@ -612,10 +629,10 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
         }
 
         val trendData = result.trends.size >= 2 && (
-            (showMind && result.trends.any { it.unrestCount > 0 || it.gad != null }) ||
+            (showMind && result.trends.any { (it.unrestCount ?: 0) > 0 || it.gad != null }) ||
                 (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
-        if (tab == "overview" && trendData) SectionCard(title = "Verläufe pro Monat", icon = Icons.Rounded.ShowChart) {
-            val labels = result.trends.map { it.month.monthValue.toString().padStart(2, '0') + "/" + (it.month.year % 100) }
+        if (tab == "overview" && trendData) SectionCard(title = "Verläufe pro Kalenderwoche", icon = Icons.Rounded.ShowChart) {
+            val labels = result.trends.map { it.label }
             val showSleep = Category.SLEEP_ENERGY in categories
             if (showSleep && result.trends.any { it.meanSleep != null }) {
                 Text("Schlafqualität (1–5)", style = MaterialTheme.typography.labelLarge)
@@ -625,17 +642,17 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                 Text("Energie (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanEnergy }, labels, 1.0, 5.0, MaterialTheme.colorScheme.tertiary)
             }
-            if (showMind && result.trends.any { it.unrestCount > 0 }) {
-            Text("Unruhe-Episoden pro Monat", style = MaterialTheme.typography.labelLarge)
-            LineChart(result.trends.map { it.unrestCount.toDouble() }, labels, 0.0, (result.trends.maxOf { it.unrestCount }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.tertiary)
+            if (showMind && result.trends.any { (it.unrestCount ?: 0) > 0 }) {
+            Text("Unruhe-Episoden pro Woche", style = MaterialTheme.typography.labelLarge)
+            LineChart(result.trends.map { it.unrestCount?.toDouble() }, labels, 0.0, (result.trends.maxOf { it.unrestCount ?: 0 }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.tertiary)
             }
             if (showMind && result.trends.any { it.meanUnrestLevel != null }) {
                 Text("Mittlere Unruhe-Stufe (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanUnrestLevel }, labels, 1.0, 5.0, unrestColor(3))
             }
-            if (showMind && result.trends.any { it.panicCount > 0 }) {
-            Text("Panikattacken pro Monat", style = MaterialTheme.typography.labelLarge)
-            LineChart(result.trends.map { it.panicCount.toDouble() }, labels, 0.0, (result.trends.maxOf { it.panicCount }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.error)
+            if (showMind && result.trends.any { (it.panicCount ?: 0) > 0 }) {
+            Text("Panikattacken pro Woche", style = MaterialTheme.typography.labelLarge)
+            LineChart(result.trends.map { it.panicCount?.toDouble() }, labels, 0.0, (result.trends.maxOf { it.panicCount ?: 0 }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.error)
             }
             if (showMind && result.trends.any { it.gad != null }) {
                 Text("GAD-7 (0–21)", style = MaterialTheme.typography.labelLarge)

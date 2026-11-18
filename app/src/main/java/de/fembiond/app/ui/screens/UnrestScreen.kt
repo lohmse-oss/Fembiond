@@ -112,6 +112,11 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
     ) {
         SectionCard(title = "Wie stark ist die Unruhe?", icon = Icons.Rounded.Waves) {
             de.fembiond.app.ui.UnrestLevelPicker(level, { level = it })
+            androidx.compose.material3.TextButton(onClick = {
+                val t = if (day != null && day != data.today) day.atTime(12, 0) else LocalDateTime.now()
+                vm.run { saveEntry(t, "", listOf(de.fembiond.app.data.Selection(CALM_TERM, Category.MIND)), "calm") }
+                nav.popBackStack()
+            }) { Text(if (day != null && day != data.today) "An diesem Tag keine Unruhe" else "Heute keine Unruhe – ruhigen Tag eintragen") }
         }
 
         SectionCard(title = "Hängt es mit einem Ereignis zusammen?", icon = Icons.Rounded.Event) {

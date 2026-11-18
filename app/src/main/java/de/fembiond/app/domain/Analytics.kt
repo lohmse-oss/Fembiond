@@ -90,9 +90,15 @@ data class UnrestPhaseStat(
     /** Anzahl Unruhe-Episoden (alle Stufen). */
     val count: Int,
     val panicCount: Int,
+    /** Mittlere Stufe – nur über erfasste Episoden; Tage ohne Einträge fließen nicht ein. */
     val meanLevel: Double?,
-    /** Verhältnis Anteil Episoden / Anteil Tage. >1 = gehäuft. */
+    /**
+     * Anteil der erfassten Tage dieser Phase mit Unruhe im Verhältnis zum Durchschnitt (1× = Durchschnitt).
+     * Nur berechnet, wenn es auch erfasste Tage ohne Unruhe gibt – sonst null.
+     */
     val relativeFrequency: Double?,
+    val daysTracked: Int = 0,
+    val daysWithUnrest: Int = 0,
 )
 
 /** Unruhe in den Tagen rund um Ereignisse (Tag 0 = Ereignistag). */
@@ -137,12 +143,17 @@ data class PeriodCompare(
     val topTerms: List<Pair<String, Double>>,
 )
 
-data class MonthTrend(
-    val month: YearMonth,
+/** Verlauf je Kalenderwoche (ISO, Montag–Sonntag). Wochen ohne Einträge haben null-Werte. */
+data class WeekTrend(
+    val weekStart: LocalDate,
+    val label: String,
+    val tracked: Boolean,
     val meanSleep: Double?,
     val meanEnergy: Double?,
-    val unrestCount: Int,
-    val panicCount: Int,
+    /** Anzahl Unruhe-Episoden; null, wenn in der Woche nichts erfasst wurde. */
+    val unrestCount: Int?,
+    val panicCount: Int?,
+    /** Mittlere Stufe nur über erfasste Episoden (Tage ohne Einträge zählen nicht). */
     val meanUnrestLevel: Double?,
     val gad: Double?,
 )
@@ -155,6 +166,8 @@ data class AnalysisResult(
     val drsp: List<DrspResult>,
     val drspPairs: List<DrspPair>,
     val unrestByPhase: List<UnrestPhaseStat>,
+    /** Erfasste Tage ohne Unruhe – nötig für Häufigkeitsvergleiche. */
+    val calmDays: Int,
     val unrestTotal: Int,
     val panicTotal: Int,
     /** Anzahl Episoden je Stufe 1–5. */
@@ -166,7 +179,7 @@ data class AnalysisResult(
     val nextDay: List<PairStat>,
     val events: List<EventEffect>,
     val compare: List<PeriodCompare>,
-    val trends: List<MonthTrend>,
+    val trends: List<WeekTrend>,
     val insights: List<String>,
 )
 
@@ -234,7 +247,7 @@ object Analytics {
         val (co, next) = pairs(topTerms.take(25), dayWeight)
         val lifeEffects = events(termDays, dayWeight)
         val compare = compare(input, dayWeight, allOcc, panics)
-        val trends = trends(scaleOcc, panics, input.gad.filter { inRange(it.date) })
+        val trends = trends(scaleOcc, panics, input.gad.filter { inRange(it.date) }, dayWeight.keys)
 
         val result = AnalysisResult(
             trackedDays = dayWeight.size,
@@ -244,6 +257,7 @@ object Analytics {
             drsp = drsp,
             drspPairs = drspPairs,
             unrestByPhase = unrestByPhase,
+            calmDays = dayWeight.keys.count { d -> panics.none { it.date == d } },
             unrestTotal = panics.size,
             panicTotal = panics.count { it.isPanic },
             levelCounts = (1..5).map { l -> panics.count { it.level == l } },
@@ -370,27 +384,33 @@ object Analytics {
             .sortedByDescending { it.premenstrual - it.postmenstrual }
     }
 
+    /** Mindestanzahl erfasster ruhiger Tage, damit Häufigkeiten nach Phase verglichen werden. */
+    const val MIN_CALM_DAYS = 3
+
     private fun unrestByPhase(
         episodes: List<Episode>,
         dayWeight: Map<LocalDate, Double>,
         dayInfo: Map<LocalDate, DayInfo?>,
         s: CycleSummary,
     ): List<UnrestPhaseStat> {
-        val trackedPhase = HashMap<Phase, Double>()
-        dayWeight.forEach { (d, w) -> dayInfo[d]?.let { trackedPhase.merge(it.phase, w, Double::plus) } }
-        val totalTracked = trackedPhase.values.sum()
+        val unrestDays = episodes.map { it.date }.toSet()
+        val tracked = dayWeight.keys.filter { dayInfo[it] != null }
+        val calm = tracked.count { it !in unrestDays }
+        val overallRate = if (tracked.isNotEmpty()) tracked.count { it in unrestDays }.toDouble() / tracked.size else 0.0
         val byPhase = episodes.groupBy { CycleEngine.dayInfo(s, it.date)?.phase }
-        val total = episodes.count { CycleEngine.dayInfo(s, it.date) != null }
         return Phase.entries.map { p ->
             val list = byPhase[p].orEmpty()
-            val dayShare = if (totalTracked > 0) (trackedPhase[p] ?: 0.0) / totalTracked else 0.0
-            val share = if (total > 0) list.size.toDouble() / total else 0.0
+            val days = tracked.filter { dayInfo[it]?.phase == p }
+            val withUnrest = days.count { it in unrestDays }
+            val rate = if (days.isNotEmpty()) withUnrest.toDouble() / days.size else 0.0
             UnrestPhaseStat(
                 phase = p,
                 count = list.size,
                 panicCount = list.count { it.isPanic },
                 meanLevel = list.takeIf { it.isNotEmpty() }?.map { it.level }?.average(),
-                relativeFrequency = if (dayShare > 0 && total >= 3) share / dayShare else null,
+                relativeFrequency = if (calm >= MIN_CALM_DAYS && overallRate > 0 && days.size >= 3) rate / overallRate else null,
+                daysTracked = days.size,
+                daysWithUnrest = withUnrest,
             )
         }
     }
@@ -546,21 +566,33 @@ object Analytics {
         }
     }
 
-    private fun trends(scale: List<TermOccurrence>, panics: List<Episode>, gad: List<GadRecord>): List<MonthTrend> {
-        val months = (scale.map { YearMonth.from(it.date) } + panics.map { YearMonth.from(it.date) } + gad.map { YearMonth.from(it.date) })
-            .toSortedSet()
-        return months.map { m ->
-            val sc = scale.filter { YearMonth.from(it.date) == m }
-            MonthTrend(
-                month = m,
+    private fun trends(
+        scale: List<TermOccurrence>, panics: List<Episode>, gad: List<GadRecord>, trackedDays: Set<LocalDate>,
+    ): List<WeekTrend> {
+        val dates = scale.map { it.date } + panics.map { it.date } + gad.map { it.date } + trackedDays
+        if (dates.isEmpty()) return emptyList()
+        fun monday(d: LocalDate) = d.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.MONDAY))
+        val first = monday(dates.min())
+        val last = monday(dates.max())
+        val weekFields = java.time.temporal.IsoFields.WEEK_OF_WEEK_BASED_YEAR
+        return generateSequence(first) { it.plusWeeks(1) }.takeWhile { !it.isAfter(last) }.map { w ->
+            val end = w.plusDays(6)
+            fun inW(d: LocalDate) = !d.isBefore(w) && !d.isAfter(end)
+            val tracked = trackedDays.any { inW(it) }
+            val sc = scale.filter { inW(it.date) }
+            val ep = panics.filter { inW(it.date) }
+            WeekTrend(
+                weekStart = w,
+                label = "KW ${w.get(weekFields)}",
+                tracked = tracked,
                 meanSleep = sc.filter { it.term == ScaleTerms.SLEEP_QUALITY }.mapNotNull { it.intensity }.takeIf { it.isNotEmpty() }?.average(),
                 meanEnergy = sc.filter { it.term == ScaleTerms.ENERGY }.mapNotNull { it.intensity }.takeIf { it.isNotEmpty() }?.average(),
-                unrestCount = panics.count { YearMonth.from(it.date) == m },
-                panicCount = panics.count { YearMonth.from(it.date) == m && it.isPanic },
-                meanUnrestLevel = panics.filter { YearMonth.from(it.date) == m }.map { it.level }.takeIf { it.isNotEmpty() }?.average(),
-                gad = gad.filter { YearMonth.from(it.date) == m }.map { it.score }.takeIf { it.isNotEmpty() }?.average(),
+                unrestCount = if (tracked) ep.size else null,
+                panicCount = if (tracked) ep.count { it.isPanic } else null,
+                meanUnrestLevel = ep.takeIf { it.isNotEmpty() }?.map { it.level }?.average(),
+                gad = gad.filter { inW(it.date) }.map { it.score }.takeIf { it.isNotEmpty() }?.average(),
             )
-        }
+        }.toList()
     }
 }
 

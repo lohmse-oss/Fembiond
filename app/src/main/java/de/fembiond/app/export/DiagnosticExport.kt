@@ -179,6 +179,7 @@ object DiagnosticExport {
                     result.unrestByPhase.forEach { p ->
                         add(buildJsonObject {
                             put("phase", p.phase.name); put("count", p.count); put("panic", p.panicCount)
+                            put("days_tracked", p.daysTracked); put("days_with_unrest", p.daysWithUnrest)
                             p.meanLevel?.let { put("mean_level", r1(it)) }; p.relativeFrequency?.let { put("relative_frequency", r1(it)) }
                         })
                     }
@@ -186,6 +187,15 @@ object DiagnosticExport {
                 putJsonArray("anticipation") {
                     result.anticipation.forEach { a ->
                         add(buildJsonObject { put("offset", a.offset); put("events", a.events); a.meanMaxLevel?.let { put("mean_max_level", r1(it)) } })
+                    }
+                }
+                put("calm_days_tracked", result.calmDays)
+                putJsonArray("weekly_trends") {
+                    result.trends.forEach { w ->
+                        add(buildJsonObject {
+                            put("week", w.label); put("week_start", w.weekStart.toString()); put("tracked", w.tracked)
+                            w.unrestCount?.let { put("unrest_count", it) }; w.meanUnrestLevel?.let { put("mean_unrest_level", r1(it)) }
+                        })
                     }
                 }
                 put("insights", JsonArray(result.insights.map(::JsonPrimitive)))
