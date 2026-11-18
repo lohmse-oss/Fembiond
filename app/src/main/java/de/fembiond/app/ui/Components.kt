@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -301,63 +302,56 @@ fun CycleRing(state: CurrentState, medicationDays: Set<Int>, modifier: Modifier 
 
 private fun Modifier.matchParentSizeCompat(): Modifier = this.fillMaxWidth().aspectRatio(1f)
 
-/** Heatmap Begriff × Zyklustag. */
+/** Heatmap Begriff × Zyklustag – passt sich der Breite an, alle Tage sichtbar. */
 @Composable
 fun HeatmapView(map: Heatmap, modifier: Modifier = Modifier) {
     val pc = LocalPhaseColors.current
     var selected by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    val labelWidth = 128.dp
-    val cell = 18.dp
-    Column(modifier) {
-        Row {
-            Column(Modifier.width(labelWidth)) {
-                Spacer(Modifier.height(20.dp))
-                map.rows.forEach { r ->
-                    Box(Modifier.height(cell + 4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text(r.term, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val labelWidth = 104.dp
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val cell = ((maxWidth - labelWidth) / map.maxDay).coerceAtMost(18.dp)
+        val rowH = maxOf(cell + 2.dp, 20.dp)
+        Column {
+            Row(Modifier.height(18.dp)) {
+                Spacer(Modifier.width(labelWidth))
+                for (d in 1..map.maxDay) {
+                    Box(Modifier.width(cell), contentAlignment = Alignment.Center) {
+                        if (d == 1 || d % 7 == 0) Text("$d", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
                     }
                 }
             }
-            Column(Modifier.horizontalScroll(rememberScrollState())) {
-                Row(Modifier.height(20.dp)) {
-                    for (d in 1..map.maxDay) {
-                        Box(Modifier.width(cell + 2.dp), contentAlignment = Alignment.Center) {
-                            if (d == 1 || d % 7 == 0) Text("$d", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-                map.rows.forEachIndexed { ri, r ->
-                    Row(Modifier.height(cell + 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        r.cells.forEachIndexed { di, v ->
-                            val isSel = selected == (ri to di)
-                            Box(
-                                Modifier
-                                    .padding(1.dp)
-                                    .size(cell)
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(if (map.trackedPerDay[di] == 0.0) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f) else lerp(pc.heatLow, pc.heatHigh, v.toFloat().coerceIn(0f, 1f)))
-                                    .then(if (isSel) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(4.dp)) else Modifier)
-                                    .clickable { selected = if (isSel) null else ri to di }
-                            )
-                        }
+            map.rows.forEachIndexed { ri, r ->
+                Row(Modifier.height(rowH), verticalAlignment = Alignment.CenterVertically) {
+                    Text(r.term, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(labelWidth).padding(end = 6.dp))
+                    r.cells.forEachIndexed { di, v ->
+                        val isSel = selected == (ri to di)
+                        Box(
+                            Modifier
+                                .size(cell)
+                                .padding(0.75.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(if (map.trackedPerDay[di] == 0.0) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f) else lerp(pc.heatLow, pc.heatHigh, v.toFloat().coerceIn(0f, 1f)))
+                                .then(if (isSel) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp)) else Modifier)
+                                .clickable { selected = if (isSel) null else ri to di }
+                        )
                     }
                 }
             }
-        }
-        selected?.let { (ri, di) ->
-            val r = map.rows.getOrNull(ri) ?: return@let
-            Text(
-                "${r.term}, Zyklustag ${di + 1}${if (di + 1 == map.maxDay) "+" else ""}: an ${(r.cells[di] * 100).toInt()} % der erfassten Tage",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-        }
-        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("selten", style = MaterialTheme.typography.labelSmall)
-            Spacer(Modifier.width(6.dp))
-            for (i in 0..4) Box(Modifier.padding(1.dp).size(12.dp).clip(RoundedCornerShape(3.dp)).background(lerp(pc.heatLow, pc.heatHigh, i / 4f)))
-            Spacer(Modifier.width(6.dp))
-            Text("häufig", style = MaterialTheme.typography.labelSmall)
+            selected?.let { (ri, di) ->
+                val r = map.rows.getOrNull(ri) ?: return@let
+                Text(
+                    "${r.term}, Zyklustag ${di + 1}${if (di + 1 == map.maxDay) "+" else ""}: an ${(r.cells[di] * 100).toInt()} % der erfassten Tage",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("selten", style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.width(6.dp))
+                for (i in 0..4) Box(Modifier.padding(1.dp).size(12.dp).clip(RoundedCornerShape(3.dp)).background(lerp(pc.heatLow, pc.heatHigh, i / 4f)))
+                Spacer(Modifier.width(6.dp))
+                Text("häufig", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }

@@ -25,7 +25,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w412dp-h915dp-xxhdpi")
+@Config(sdk = [35], qualifiers = "w412dp-h915dp-xxhdpi", application = Application::class)
 class ScreenshotTest {
     @get:Rule val compose = createComposeRule()
     private val data = SampleData.build()
@@ -34,6 +34,8 @@ class ScreenshotTest {
     private fun shot(name: String, dark: Boolean = false, content: @Composable (AppViewModel) -> Unit) {
         val vm = AppViewModel(ApplicationProvider.getApplicationContext<Application>())
         compose.setContent { FembiondTheme(if (dark) ThemeMode.DARK else ThemeMode.LIGHT) { content(vm) } }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(1500)
         compose.waitForIdle()
         compose.onRoot().captureRoboImage("$dir/$name.png")
     }

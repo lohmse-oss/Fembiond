@@ -257,7 +257,7 @@ object Analytics {
             days.forEach { d -> val dw = dayWeight[d]!!; w += dw; sum += dw * (map[d]?.second ?: 0.0) }
             return if (w == 0.0) 0.0 else sum / w
         }
-        return terms.map { (key, map) ->
+        return terms.filter { it.key.second != Category.LIFE }.map { (key, map) ->
             DrspResult(key.first, key.second, mean(pre, map), mean(post, map), cyclesBoth)
         }.filter { it.premenstrual > 0 || it.postmenstrual > 0 }
             .sortedByDescending { it.premenstrual - it.postmenstrual }

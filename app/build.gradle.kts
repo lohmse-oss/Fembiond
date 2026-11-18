@@ -17,6 +17,17 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        // Fester Schlüssel im Repo, damit Updates auf dem Handy installiert werden können,
+        // ohne die App (und damit die lokalen Daten) zu deinstallieren.
+        getByName("debug") {
+            storeFile = file("signing/debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -71,6 +82,7 @@ dependencies {
     implementation(libs.sqlcipher)
     implementation(libs.datastore.preferences)
     implementation(libs.biometric)
+    implementation(libs.fragment.ktx)
     implementation(libs.work.runtime)
     implementation(libs.glance.appwidget)
     implementation(libs.kotlinx.serialization.json)
