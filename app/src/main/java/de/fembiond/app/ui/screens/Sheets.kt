@@ -49,6 +49,9 @@ import de.fembiond.app.ui.morphShapes
 import de.fembiond.app.ui.relativeDays
 import java.time.LocalDateTime
 
+/** Begriff für Tage ohne Unruhe – damit ruhige Tage in Vergleichen als 0 zählen. */
+const val CALM_TERM = "ausgeglichen"
+
 /** Unruhe schnell erfassen, ohne den Startbildschirm zu verlassen. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +65,12 @@ fun QuickUnrestSheet(vm: AppViewModel, data: AppData, nav: NavController, onDism
         Column(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("Unruhe erfassen", style = MaterialTheme.typography.titleLarge)
             UnrestLevelPicker(level, { level = it })
+            androidx.compose.material3.TextButton(onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(CALM_TERM, Category.MIND)), "calm") }
+                Toast.makeText(context, "Ruhiger Tag erfasst", Toast.LENGTH_SHORT).show()
+                onDismiss()
+            }) { Text("Heute keine Unruhe – ruhigen Tag eintragen") }
             if (events.isNotEmpty()) {
                 Text("Hängt es mit einem Ereignis zusammen?", style = MaterialTheme.typography.labelLarge)
                 ChipFlow {
