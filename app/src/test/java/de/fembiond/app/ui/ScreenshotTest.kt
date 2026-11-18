@@ -80,6 +80,8 @@ class ScreenshotTest {
     @Test fun weekly() = shot("15_wochenrueckblick") { de.fembiond.app.ui.screens.WeeklyReviewScreen(data.copy(today = java.time.LocalDate.of(2026, 11, 22)), rememberNavController()) }
     @Config(qualifiers = "w412dp-h2600dp-xxhdpi")
     @Test fun mrs() = shot("16_mrs") { de.fembiond.app.ui.screens.MrsScreen(it, data, rememberNavController()) }
+    @Config(qualifiers = "w412dp-h1600dp-xxhdpi")
+    @Test fun searchScreen() = shot("17_suche") { de.fembiond.app.ui.screens.SearchScreen(data, rememberNavController()) }
     @Test fun more() = shot("09_mehr") { MoreScreen(data, rememberNavController()) }
     @Test fun export() = shot("10_export") { ExportScreen(it, data, rememberNavController()) }
     @Test fun settings() = shot("11_einstellungen") { SettingsScreen(it, data, rememberNavController()) }

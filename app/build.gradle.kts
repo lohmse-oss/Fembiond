@@ -13,8 +13,8 @@ android {
         applicationId = "de.fembiond.app"
         minSdk = 31
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.4.2"
+        versionCode = 8
+        versionName = "0.5.0"
         buildConfigField("String", "RELEASES_URL", "\"https://github.com/lohmse-oss/Fembiond/releases\"")
     }
 

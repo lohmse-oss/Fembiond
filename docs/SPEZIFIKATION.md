@@ -191,6 +191,16 @@ und in Korrelationen geringer gewichtet. Später ist alles über den Kalender ed
 - Widgets: 4×1 (skalierbar), 2×2 Ring, 1×1 Unruhe-Schnelltaste
 - Seiten „Über“ (Version, Versionshinweise, Updates) und „Anleitung“ (kontextbezogen über das Fragezeichen)
 
+## 11b. Bedienung (v0.5)
+
+- Auswertung in Reitern (Überblick, Zyklus, Unruhe, PMS, Perimenopause), nur Reiter mit Daten
+- Plus-Menü (FAB-Menü) auf dem Startbildschirm, Schnelleingaben als Bottom Sheets (Unruhe, Beschwerden)
+- „Heute wichtig“ als Karussell, mitwandernde große Kopfzeile, Sprungleiste und „Nach oben“ auf langen Seiten
+- App-Shortcuts, Schnelleinstellungs-Kachel, Aktionen in Benachrichtigungen („Eingenommen“, „Unruhe erfassen“)
+- Suche über Einträge, Notizen, Unruhe-Episoden und Ereignisse
+- Geteilte Übergänge (Tag → Tagesansicht), Material 3 Expressive (Tastengruppe, Formwechsel, Ladeanzeige),
+  leere Zustände mit Illustration, optional Systemfarben (Material You)
+
 ## 12. Technik
 
 - Kotlin, Jetpack Compose, Material 3, Room (verschlüsselt per SQLCipher), DataStore

@@ -37,7 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -52,6 +52,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -145,23 +148,32 @@ fun Screen(
     scroll: Boolean = true,
     /** Sprungmarken-Leiste aus den Kartentiteln anzeigen. */
     jumpBar: Boolean = false,
+    /** Inhalt direkt unter der Kopfzeile (z. B. Reiter), bleibt stehen. */
+    belowTopBar: @Composable () -> Unit = {},
+    scrollState: ScrollState = rememberScrollState(),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val scrollState = rememberScrollState()
     val registry = remember { JumpRegistry() }
+    val behavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
+        modifier = Modifier.nestedScroll(behavior.nestedScrollConnection),
         topBar = {
             Column {
-                TopAppBar(
-                    title = { Text(title) },
+                LargeTopAppBar(
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     navigationIcon = {
                         if (nav != null) IconButton(onClick = { nav.popBackStack() }) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Zurück")
                         }
                     },
                     actions = actions,
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                    scrollBehavior = behavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+                    ),
                 )
+                belowTopBar()
                 if (jumpBar && scroll) JumpBar(registry, scrollState) { shortLabel(it) }
             }
         },
@@ -186,6 +198,39 @@ fun Screen(
     }
 }
 
+/** Freundlicher leerer Zustand mit kleiner Illustration (Ring in Phasenfarben + Symbol). */
+@Composable
+fun EmptyState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    text: String,
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
+) {
+    val pc = de.fembiond.app.ui.theme.LocalPhaseColors.current
+    val ring = listOf(pc.menstruation, pc.follicular, pc.ovulation, pc.luteal)
+    Column(modifier.fillMaxWidth().padding(vertical = 24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size(112.dp), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
+                val stroke = size.minDimension * 0.06f
+                val r = size.minDimension / 2 - stroke
+                ring.forEachIndexed { i, c ->
+                    drawArc(c.copy(alpha = 0.55f), -90f + i * 90f + 8f, 74f, false,
+                        topLeft = androidx.compose.ui.geometry.Offset(size.width / 2 - r, size.height / 2 - r),
+                        size = androidx.compose.ui.geometry.Size(r * 2, r * 2),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+            }
+            Box(Modifier.size(64.dp).clip(androidx.compose.foundation.shape.CircleShape).background(MaterialTheme.colorScheme.secondaryContainer), contentAlignment = Alignment.Center) {
+                Icon(icon, null, Modifier.size(32.dp), tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            }
+        }
+        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        action?.invoke()
+    }
+}
+
 /** Kurze Beschriftung für Sprungmarken. */
 fun shortLabel(title: String): String = when {
     title.startsWith("Vor der Periode") -> "Vorher/Nachher"
@@ -197,6 +242,14 @@ fun shortLabel(title: String): String = when {
     title.startsWith("Vorher / Nachher Medikation") -> "Medikation"
     title.startsWith("Verläufe") -> "Verläufe"
     title.startsWith("Zyklen übereinander") -> "Überlagerung"
+    title.startsWith("Wie stark") -> "Stufe"
+    title.startsWith("Hängt es") -> "Ereignis"
+    title.startsWith("Wann und wie") -> "Zeit"
+    title.startsWith("Körperliche Anzeichen") -> "Anzeichen"
+    title.startsWith("Was geholfen") -> "Hilfe"
+    title.startsWith("Daten zur Prüfung") -> "Prüfdaten"
+    title.startsWith("Für einen KI") -> "KI-Export"
+    title.startsWith("Arztbericht") -> "Arztbericht"
     title.length > 22 -> title.take(20) + "…"
     else -> title
 }

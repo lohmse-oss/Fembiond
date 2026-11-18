@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material3.IconButton
@@ -103,9 +104,13 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     val greet = when (hour) { in 5..10 -> "Guten Morgen"; in 11..17 -> "Hallo"; in 18..22 -> "Guten Abend"; else -> "Gute Nacht" }
 
     val homeScroll = rememberScrollState()
+    var fabOpen by remember { mutableStateOf(false) }
+    var unrestSheet by remember { mutableStateOf(false) }
+    var symptomSheet by remember { mutableStateOf(false) }
+    var eventDialog by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().height(420.dp).background(phaseHeaderBrush(phase)))
-        ScrollTopButton(homeScroll, Modifier.align(Alignment.BottomEnd).padding(16.dp).zIndex(1f))
+        ScrollTopButton(homeScroll, Modifier.align(Alignment.BottomStart).padding(16.dp).zIndex(1f))
         Column(
             Modifier.fillMaxSize().verticalScroll(homeScroll).statusBarsPadding().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -115,6 +120,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 Text(if (profile != null) "$greet, ${profile.name}" else greet, style = MaterialTheme.typography.headlineSmall)
                 Text(today.weekdayLong(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            IconButton(onClick = { nav.navigate(Routes.SEARCH) }) { Icon(Icons.Rounded.Search, "Suchen") }
             IconButton(onClick = { nav.navigate(Routes.guide("home")) }) { Icon(Icons.Rounded.HelpOutline, "Hilfe") }
         }
 
@@ -203,61 +209,10 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             }
 
             WeekStrip(stripDays(data), today) { nav.navigate(Routes.day(it)) }
-
-            if (s.straw == StrawStage.EARLY || s.straw == StrawStage.LATE) {
-                SectionCard(title = s.straw.label, icon = Icons.Rounded.Info, container = MaterialTheme.colorScheme.tertiaryContainer) {
-                    Text(s.straw.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
-                }
-            }
         }
 
-        // Schnellaktionen
-        Button(
-            onClick = { haptic.performHapticFeedback(HapticFeedbackType.ContextClick); nav.navigate(Routes.entry()) },
-            modifier = Modifier.fillMaxWidth().height(64.dp),
-            shape = MaterialTheme.shapes.large,
-        ) {
-            Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(10.dp))
-            Text("Wie geht es dir gerade?", style = MaterialTheme.typography.titleMedium)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FilledTonalButton(
-                onClick = { haptic.performHapticFeedback(HapticFeedbackType.ContextClick); nav.navigate(Routes.unrest()) },
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = MaterialTheme.shapes.large,
-                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
-            ) { Icon(Icons.Rounded.Waves, null); Spacer(Modifier.width(8.dp)); Text("Unruhe", maxLines = 1) }
-            FilledTonalButton(
-                onClick = { nav.navigate(Routes.entry(note = true)) },
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = MaterialTheme.shapes.large,
-            ) { Icon(Icons.Rounded.EditNote, null); Spacer(Modifier.width(8.dp)); Text("Notiz", maxLines = 1) }
-        }
-
-        // Belastungshinweise für die nächsten 7 Tage
-        StressForecast.upcoming(s, data.events, data.episodes, data.occurrences, today).forEach { r -> StressHintCard(r, data, nav) }
-
-        // PMS-Hinweis in den Tagen vor der Periode
-        if (current != null && !current.inPeriod && current.prediction.overdueDays == 0 && daysBetween(today, current.prediction.from) in 0..5) {
-            val pms = remember(data) { de.fembiond.app.domain.Pms.analyze(s, data.occurrences, data.episodes, today) }
-            if (pms.typical > 0 && pms.typicalSymptoms.isNotEmpty()) {
-                SectionCard(title = "Die Tage vor der Periode", icon = Icons.Rounded.Psychology, container = MaterialTheme.colorScheme.secondaryContainer) {
-                    Text("In dieser Zeit traten bei dir bisher oft auf: ${pms.typicalSymptoms.joinToString()}.", style = MaterialTheme.typography.bodyMedium)
-                    HintText("Sei nachsichtig mit dir: etwas mehr Ruhe, Bewegung an der frischen Luft und weniger Termine können helfen. Nach Beginn der Periode klingt es meist wieder ab.")
-                    TextButton(onClick = { nav.navigate(Routes.ANALYSIS) }) { Text("PMS-Auswertung") }
-                }
-            }
-        }
-
-        // Wochenrückblick (Sonntag und Montag)
-        if (data.settings.weeklyReview && (today.dayOfWeek == java.time.DayOfWeek.SUNDAY || today.dayOfWeek == java.time.DayOfWeek.MONDAY)) {
-            val review = WeeklyReviewBuilder.build(s, data.occurrences, data.episodes, data.events,
-                if (today.dayOfWeek == java.time.DayOfWeek.MONDAY) today.minusDays(1) else today)
-            SectionCard(title = "Dein Wochenrückblick", icon = Icons.Rounded.AutoStories, container = MaterialTheme.colorScheme.secondaryContainer) {
-                Text(WeeklyReviewBuilder.shortText(review), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = { nav.navigate(Routes.WEEKLY) }) { Text("Rückblick ansehen") }
-            }
-        }
+        // „Heute wichtig“: Hinweise als wischbare Karten
+        TodayCarousel(data, nav)
 
         TrendsCard(data, nav)
         PeriCard(vm, data, nav)
@@ -304,20 +259,6 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             }
         }
 
-        if (data.entries.size < 5 && current != null) {
-            SectionCard(title = "Neu hier?", icon = Icons.Rounded.Info) {
-                HintText("Die Anleitung erklärt in wenigen Minuten Eingabe, Unruhe-Stufen, Ereignisse und Auswertung.")
-                TextButton(onClick = { nav.navigate(Routes.guide("start")) }) { Text("Anleitung öffnen") }
-            }
-        }
-
-        if (data.gadDue && data.occurrences.size > 3) {
-            SectionCard(title = "Kurzer Angst-Check (GAD-7)", icon = Icons.Rounded.Quiz) {
-                HintText("7 Fragen zu den letzten zwei Wochen. Ergibt einen vergleichbaren Wert über die Monate.")
-                FilledTonalButton(onClick = { nav.navigate(Routes.GAD) }) { Text("Jetzt ausfüllen") }
-            }
-        }
-
         // Heutige Einträge
         val todays = data.entries.filter { it.time.toLocalDate() == today }
         val panicsToday = data.episodes.filter { it.date == today }.sortedBy { it.time }
@@ -341,9 +282,22 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(120.dp))
         }
+        CaptureFabMenu(
+            open = fabOpen, onOpen = { fabOpen = it },
+            onEntry = { nav.navigate(Routes.entry()) },
+            onUnrest = { unrestSheet = true },
+            onSymptom = { symptomSheet = true },
+            onNote = { nav.navigate(Routes.entry(note = true)) },
+            onEvent = { eventDialog = true },
+            modifier = Modifier.align(Alignment.BottomEnd),
+        )
     }
+
+    if (unrestSheet) QuickUnrestSheet(vm, data, nav) { unrestSheet = false }
+    if (symptomSheet) QuickSymptomSheet(vm, data, nav) { symptomSheet = false }
+    if (eventDialog) EventDialog(data, null, onDismiss = { eventDialog = false }, onSave = { vm.run { saveEvent(it) }; eventDialog = false })
 
     if (phaseDialog && current != null) {
         var choice by remember { mutableStateOf(override) }

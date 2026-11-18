@@ -106,13 +106,19 @@ private val AppShapes = Shapes(
 )
 
 @Composable
-fun FembiondTheme(mode: ThemeMode = ThemeMode.SYSTEM, content: @Composable () -> Unit) {
+fun FembiondTheme(mode: ThemeMode = ThemeMode.SYSTEM, dynamicColor: Boolean = false, content: @Composable () -> Unit) {
     val dark = when (mode) {
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    val scheme: ColorScheme = if (dark) Dark else Light
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scheme: ColorScheme = when {
+        dynamicColor && android.os.Build.VERSION.SDK_INT >= 31 ->
+            if (dark) androidx.compose.material3.dynamicDarkColorScheme(context) else androidx.compose.material3.dynamicLightColorScheme(context)
+        dark -> Dark
+        else -> Light
+    }
     CompositionLocalProvider(LocalPhaseColors provides if (dark) DarkPhase else LightPhase) {
         MaterialTheme(colorScheme = scheme, typography = AppTypography, shapes = AppShapes, content = content)
     }

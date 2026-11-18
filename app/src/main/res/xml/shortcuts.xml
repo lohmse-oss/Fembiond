@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="unrest" android:enabled="true" android:icon="@drawable/ic_sc_unrest"
+        android:shortcutShortLabel="@string/sc_unrest_short" android:shortcutLongLabel="@string/sc_unrest_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="de.fembiond.app" android:targetClass="de.fembiond.app.MainActivity">
+            <extra android:name="route" android:value="unrest?event=-1&amp;day=-1" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="entry" android:enabled="true" android:icon="@drawable/ic_sc_entry"
+        android:shortcutShortLabel="@string/sc_entry_short" android:shortcutLongLabel="@string/sc_entry_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="de.fembiond.app" android:targetClass="de.fembiond.app.MainActivity">
+            <extra android:name="route" android:value="entry?day=-1&amp;note=false" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="weekly" android:enabled="true" android:icon="@drawable/ic_sc_weekly"
+        android:shortcutShortLabel="@string/sc_weekly_short" android:shortcutLongLabel="@string/sc_weekly_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="de.fembiond.app" android:targetClass="de.fembiond.app.MainActivity">
+            <extra android:name="route" android:value="weekly" />
+        </intent>
+    </shortcut>
+    <shortcut android:shortcutId="search" android:enabled="true" android:icon="@drawable/ic_sc_search"
+        android:shortcutShortLabel="@string/sc_search_short" android:shortcutLongLabel="@string/sc_search_long">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="de.fembiond.app" android:targetClass="de.fembiond.app.MainActivity">
+            <extra android:name="route" android:value="search" />
+        </intent>
+    </shortcut>
+</shortcuts>

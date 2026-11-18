@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.IosShare
@@ -65,6 +66,8 @@ import de.fembiond.app.ui.short
 fun MoreScreen(data: AppData, nav: NavController) {
     Screen(title = "Mehr", nav = null) {
         SectionCard {
+            MoreItem(Icons.Rounded.Search, "Suchen", "Alle Einträge, Notizen und Ereignisse durchsuchen") { nav.navigate(Routes.SEARCH) }
+            HorizontalDivider()
             MoreItem(Icons.Rounded.Event, "Ereignisse", "Feiern, Essen gehen, Konzerte planen und auswerten") { nav.navigate(Routes.EVENTS) }
             HorizontalDivider()
             MoreItem(Icons.Rounded.Medication, "Medikation", "Behandlungsphasen, Einnahme, Neubefund") { nav.navigate(Routes.MEDS) }
@@ -119,6 +122,11 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
 
     Screen(title = "Einstellungen", jumpBar = true, nav = nav) {
         SectionCard(title = "Darstellung") {
+            LabeledRow("Systemfarben (Material You)") {
+                Switch(s.dynamicColor, { on -> vm.run { updateSettings { it.copy(dynamicColor = on) } } })
+            }
+            HintText("Passt die Farben an dein Hintergrundbild an. Die Farben der Zyklusphasen bleiben gleich. Aus = Fembiond-Palette (Beere, Rosé, Pflaume).")
+            HorizontalDivider()
             ThemeMode.entries.forEach { m ->
                 Row(Modifier.fillMaxWidth().clickable { vm.run { updateSettings { it.copy(theme = m) } } }, verticalAlignment = Alignment.CenterVertically) {
                     RadioButton(s.theme == m, { vm.run { updateSettings { it.copy(theme = m) } } }); Text(m.label)

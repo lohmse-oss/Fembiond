@@ -17,6 +17,7 @@ coroutines = "1.11.0"
 junit = "4.13.2"
 work = "2.12.0"
 glance = "1.2.0"
+material3 = "1.5.0-rc01"
 fragment = "1.9.1"
 robolectric = "4.18.1"
 roborazzi = "1.79.0"
@@ -32,7 +33,7 @@ compose-ui = { module = "androidx.compose.ui:ui" }
 compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
 compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
 compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
-compose-material3 = { module = "androidx.compose.material3:material3" }
+compose-material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
 compose-material-icons = { module = "androidx.compose.material:material-icons-extended" }
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }

@@ -148,7 +148,7 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
                         Text(if (date == data.today) "Heute" else date.dm())
                     }
                     Spacer(Modifier.weight(1f))
-                    Button(onClick = ::save, enabled = count > 0 || text.isNotBlank(), modifier = Modifier.height(52.dp)) {
+                    Button(onClick = ::save, enabled = count > 0 || text.isNotBlank(), modifier = Modifier.height(52.dp), shapes = de.fembiond.app.ui.morphShapes()) {
                         Text(if (count > 0) "Speichern ($count)" else "Speichern")
                     }
                 }

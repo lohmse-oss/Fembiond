@@ -32,19 +32,28 @@ object Reminders {
         WorkManager.getInstance(context).enqueueUniquePeriodicWork("reminders", ExistingPeriodicWorkPolicy.KEEP, req)
     }
 
-    fun notify(context: Context, id: Int, title: String, text: String, route: String) {
+    /** Zusätzliche Schaltfläche in einer Benachrichtigung. */
+    data class Action(val label: String, val intent: PendingIntent)
+
+    fun activityIntent(context: Context, route: String, requestCode: Int): PendingIntent {
+        val intent = Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_ROUTE, route)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        return PendingIntent.getActivity(context, requestCode, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    fun notify(context: Context, id: Int, title: String, text: String, route: String, actions: List<Action> = emptyList()) {
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Erinnerungen", NotificationManager.IMPORTANCE_DEFAULT))
-        val intent = Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_ROUTE, route)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-        val pi = PendingIntent.getActivity(context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val n = NotificationCompat.Builder(context, CHANNEL)
+        val pi = activityIntent(context, route, id)
+        val b = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setContentIntent(pi)
             .setAutoCancel(true)
-            .build()
+        actions.forEach { b.addAction(0, it.label, it.intent) }
+        val n = b.build()
         runCatching { NotificationManagerCompat.from(context).notify(id, n) }
     }
 }
@@ -62,14 +71,25 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         prefs.edit().putLong("last", today.toEpochDay()).apply()
 
         data.medications.filter { CycleEngine.intakeDue(it, data.summary, today) && (it.id to today) !in data.intakes }.forEach { m ->
-            Reminders.notify(applicationContext, 1000 + m.id.toInt(), "Einnahme: ${m.name}", "Heute laut Schema fällig (${m.scheduleLabel()}). Zum Abhaken antippen.", Routes.HOME)
+            val nid = 1000 + m.id.toInt()
+            val taken = android.app.PendingIntent.getBroadcast(
+                applicationContext, nid,
+                Intent(applicationContext, IntakeActionReceiver::class.java)
+                    .putExtra(IntakeActionReceiver.EXTRA_PHASE, m.id)
+                    .putExtra(IntakeActionReceiver.EXTRA_DAY, today.toEpochDay())
+                    .putExtra(IntakeActionReceiver.EXTRA_NOTIFICATION, nid),
+                android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            Reminders.notify(applicationContext, nid, "Einnahme: ${m.name}", "Heute laut Schema fällig (${m.scheduleLabel()}).", Routes.HOME,
+                listOf(Reminders.Action("Eingenommen", taken)))
         }
         val risks = de.fembiond.app.domain.StressForecast.upcoming(data.summary, data.events, data.episodes, data.occurrences, today, 1)
         data.events.filter { it.date == today.plusDays(1) }.forEach { e ->
             val risk = risks.firstOrNull { it.event.id == e.id }
             val text = if (risk != null) "Gut vorbereiten: ${risk.factors.first()}. ${risk.tips.first()}."
             else "Plane Pausen ein und nimm dir mit, was dir sonst hilft. Unruhe kannst du direkt in der App festhalten."
-            Reminders.notify(applicationContext, 3000 + e.id.toInt(), "Morgen: ${e.displayName}", text, Routes.EVENTS)
+            Reminders.notify(applicationContext, 3000 + e.id.toInt(), "Morgen: ${e.displayName}", text, Routes.EVENTS,
+                listOf(Reminders.Action("Unruhe erfassen", Reminders.activityIntent(applicationContext, Routes.unrest(e.id), 3500 + e.id.toInt()))))
         }
         if (s.weeklyReview && de.fembiond.app.domain.WeeklyReviewBuilder.isReviewDay(today)) {
             val review = de.fembiond.app.domain.WeeklyReviewBuilder.build(data.summary, data.occurrences, data.episodes, data.events, today)

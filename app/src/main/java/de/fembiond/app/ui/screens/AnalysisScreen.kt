@@ -32,6 +32,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -400,27 +402,61 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
     val showPeri = Category.PERIMENOPAUSE in categories
     val showPms = Category.MIND in categories || Category.BODY in categories
     val pms = remember(data, from, to) { de.fembiond.app.domain.Pms.analyze(data.summary, data.occurrences, data.episodes, data.today, from, to) }
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    var tabKey by rememberSaveable { mutableStateOf("overview") }
+    val hasYear = showMind && data.episodes.any { !it.date.isBefore(from) && !it.date.isAfter(to) }
+    val hasTrends = result.trends.size >= 2 && (
+        (showMind && result.trends.any { it.unrestCount > 0 || it.gad != null }) ||
+            (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
+    val periStats = de.fembiond.app.domain.PeriStats.symptomStats(data.occurrences, from, to)
+    val tabs = buildList {
+        add("overview" to "Überblick")
+        if ((all && result.cycles.bars.isNotEmpty()) || result.heatmap.rows.isNotEmpty() || (all && result.compare.size >= 2)) add("cycle" to "Zyklus")
+        if (showMind && (result.unrestTotal > 0 || result.anticipation.any { it.events > 0 } || result.coOccurrence.isNotEmpty() || result.events.isNotEmpty())) add("unrest" to "Unruhe")
+        if (result.drsp.isNotEmpty() || (showPms && pms.symptoms.any { it.preRate > 0 || it.postRate > 0 })) add("pms" to "PMS")
+        if (showPeri && (periStats.isNotEmpty() || data.mrs.isNotEmpty() || data.summary.straw == de.fembiond.app.domain.StrawStage.EARLY || data.summary.straw == de.fembiond.app.domain.StrawStage.LATE)) add("peri" to "Perimenopause")
+    }
+    val tab = tabs.firstOrNull { it.first == tabKey }?.first ?: "overview"
 
-    Screen(title = "Auswertung", jumpBar = true, nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("analysis")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
+    Screen(title = "Auswertung", jumpBar = true, scrollState = scrollState,
+        belowTopBar = {
+            if (tabs.size > 1) androidx.compose.material3.PrimaryScrollableTabRow(
+                selectedTabIndex = tabs.indexOfFirst { it.first == tab }.coerceAtLeast(0),
+                edgePadding = 12.dp,
+                containerColor = MaterialTheme.colorScheme.background,
+            ) {
+                tabs.forEach { (key, label) ->
+                    androidx.compose.material3.Tab(
+                        selected = key == tab,
+                        onClick = { tabKey = key; scope.launch { scrollState.scrollTo(0) } },
+                        text = { Text(label, maxLines = 1) },
+                    )
+                }
+            }
+        },
+        nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("analysis")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         RangeAndFilter(data, range, { range = it }, categories, { categories = it })
         HintText("Zeitraum ${from.short()} – ${to.short()} · ${result.trackedDays} Tage mit Einträgen")
 
-        if (result.trackedDays == 0 && data.periods.isEmpty()) {
-            SectionCard(title = "Noch keine Daten") {
-                HintText("Im gewählten Zeitraum gibt es noch keine Einträge. Sobald etwas erfasst ist, erscheinen hier nur die Auswertungen, zu denen es Daten gibt.")
-            }
+        if (tab == "overview" && result.insights.isEmpty() && !hasYear && !hasTrends) {
+            EmptyState(
+                Icons.Rounded.AutoAwesome, "Noch nicht genug Daten",
+                if (tabs.size > 1) "Für den Überblick braucht es noch etwas mehr Einträge. Schau in die anderen Reiter – dort erscheint bereits, wozu es Daten gibt."
+                else "Im gewählten Zeitraum gibt es noch kaum Einträge. Sobald etwas erfasst ist, erscheinen hier nur die Auswertungen, zu denen es Daten gibt.",
+            )
         }
-        if (result.insights.isNotEmpty()) SectionCard(title = "Erkenntnisse", icon = Icons.Rounded.AutoAwesome, container = MaterialTheme.colorScheme.primaryContainer) {
+        if (tab == "overview" && result.insights.isNotEmpty()) SectionCard(title = "Erkenntnisse", icon = Icons.Rounded.AutoAwesome, container = MaterialTheme.colorScheme.primaryContainer) {
             result.insights.forEach { Text("• $it", color = MaterialTheme.colorScheme.onPrimaryContainer) }
         }
 
-        if (showMind && data.episodes.any { !it.date.isBefore(from) && !it.date.isAfter(to) }) SectionCard(title = "Jahresübersicht", icon = Icons.Rounded.CalendarViewMonth) {
+        if (tab == "overview" && hasYear) SectionCard(title = "Jahresübersicht", icon = Icons.Rounded.CalendarViewMonth) {
             HintText("Ein Kästchen pro Tag der letzten 12 Monate, gefärbt nach der höchsten Unruhe-Stufe. Periodentage sind umrandet. Feld antippen für Details.")
             YearHeatmap(data, dayMarks(data).period) { nav.navigate(de.fembiond.app.Routes.day(it)) }
         }
 
         // Zyklen
-        if (all && result.cycles.bars.isNotEmpty()) SectionCard(title = "Zykluslänge & Abweichungen", icon = Icons.Rounded.Timeline) {
+        if (tab == "cycle" && all && result.cycles.bars.isNotEmpty()) SectionCard(title = "Zykluslänge & Abweichungen", icon = Icons.Rounded.Timeline) {
             val cs = result.cycles
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 BigNumber(cs.median?.roundToInt()?.toString() ?: "–", "Tage (Median)")
@@ -460,19 +496,19 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             HintText("Perimenopause (STRAW+10): ${data.summary.straw.label}")
         }
 
-        OverlayCard(data, categories)
+        if (tab == "cycle") OverlayCard(data, categories)
 
-        if (result.heatmap.rows.isNotEmpty()) SectionCard(title = "Wann tritt was auf?", icon = Icons.Rounded.GridOn) {
+        if (tab == "cycle" && result.heatmap.rows.isNotEmpty()) SectionCard(title = "Wann tritt was auf?", icon = Icons.Rounded.GridOn) {
             HintText("Anteil der erfassten Tage je Zyklustag. Tippe ein Feld an für Details.")
             HeatmapView(result.heatmap)
         }
 
-        if (result.drsp.isNotEmpty()) DrspCard(result.drspPairs, result.drsp)
+        if (tab == "pms" && result.drsp.isNotEmpty()) DrspCard(result.drspPairs, result.drsp)
 
-        if (showPms && pms.symptoms.any { it.preRate > 0 || it.postRate > 0 }) PmsCard(pms)
-        if (showPeri) PerimenopauseCard(data, from, to, result.trackedDays)
+        if (tab == "pms" && showPms && pms.symptoms.any { it.preRate > 0 || it.postRate > 0 }) PmsCard(pms)
+        if (tab == "peri" && showPeri) PerimenopauseCard(data, from, to, result.trackedDays)
 
-        if (showMind && result.unrestTotal > 0) SectionCard(title = "Unruhe nach Zyklusphase", icon = Icons.Rounded.Waves) {
+        if (tab == "unrest" && showMind && result.unrestTotal > 0) SectionCard(title = "Unruhe nach Zyklusphase", icon = Icons.Rounded.Waves) {
             if (result.unrestTotal == 0) HintText("Im Zeitraum keine Unruhe-Episoden erfasst.") else {
                 Text("Stufen-Verteilung (${result.unrestTotal} Episoden)", style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(11.dp))) {
@@ -505,7 +541,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             }
         }
 
-        if (showMind && result.anticipation.any { it.events > 0 }) SectionCard(title = "Unruhe rund um Ereignisse", icon = Icons.Rounded.Event) {
+        if (tab == "unrest" && showMind && result.anticipation.any { it.events > 0 }) SectionCard(title = "Unruhe rund um Ereignisse", icon = Icons.Rounded.Event) {
             HintText("Mittlere höchste Unruhe-Stufe an den Tagen vor und nach Ereignissen (0 = Ereignistag).")
             AnticipationChart(result.anticipation)
             if (result.eventTypes.isNotEmpty()) {
@@ -535,7 +571,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             }
         }
 
-        if (result.coOccurrence.isNotEmpty() || result.nextDay.isNotEmpty() || result.events.isNotEmpty()) {
+        if (tab == "unrest" && (result.coOccurrence.isNotEmpty() || result.nextDay.isNotEmpty() || result.events.isNotEmpty())) {
             SectionCard(title = "Zusammenhänge", icon = Icons.Rounded.Hub) {
                 if (result.events.isNotEmpty()) {
                     Text("Lebensumstände", style = MaterialTheme.typography.titleSmall)
@@ -556,7 +592,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             }
         }
 
-        if (all && result.compare.size >= 2) SectionCard(title = "Vorher / Nachher Medikation", icon = Icons.Rounded.Medication) {
+        if (tab == "cycle" && all && result.compare.size >= 2) SectionCard(title = "Vorher / Nachher Medikation", icon = Icons.Rounded.Medication) {
             result.compare.forEach { c ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(c.label, style = MaterialTheme.typography.titleSmall)
@@ -578,7 +614,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
         val trendData = result.trends.size >= 2 && (
             (showMind && result.trends.any { it.unrestCount > 0 || it.gad != null }) ||
                 (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
-        if (trendData) SectionCard(title = "Verläufe pro Monat", icon = Icons.Rounded.ShowChart) {
+        if (tab == "overview" && trendData) SectionCard(title = "Verläufe pro Monat", icon = Icons.Rounded.ShowChart) {
             val labels = result.trends.map { it.month.monthValue.toString().padStart(2, '0') + "/" + (it.month.year % 100) }
             val showSleep = Category.SLEEP_ENERGY in categories
             if (showSleep && result.trends.any { it.meanSleep != null }) {

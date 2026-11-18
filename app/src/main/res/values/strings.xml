@@ -3,4 +3,12 @@
     <string name="widget_description">Zyklustag, Phase, nächste Periode und Medikation auf einen Blick</string>
     <string name="ring_widget_description">Großer Zyklusring mit Zyklustag, Phase und Prognose</string>
     <string name="unrest_widget_description">Schnelltaste: Unruhe erfassen</string>
+    <string name="sc_unrest_short">Unruhe</string>
+    <string name="sc_unrest_long">Unruhe erfassen</string>
+    <string name="sc_entry_short">Befinden</string>
+    <string name="sc_entry_long">Wie geht es dir?</string>
+    <string name="sc_weekly_short">Rückblick</string>
+    <string name="sc_weekly_long">Wochenrückblick</string>
+    <string name="sc_search_short">Suchen</string>
+    <string name="sc_search_long">Einträge durchsuchen</string>
 </resources>

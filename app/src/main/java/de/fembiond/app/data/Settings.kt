@@ -28,6 +28,8 @@ data class Settings(
     val reminderHour: Int = 20,
     val mrsIntervalDays: Int = 28,
     val weeklyReview: Boolean = true,
+    /** Systemfarben (Material You) statt der Fembiond-Palette. */
+    val dynamicColor: Boolean = false,
 )
 
 private val Context.dataStore by preferencesDataStore("settings")
@@ -47,6 +49,7 @@ class SettingsStore(private val context: Context) {
         val reminderHour = intPreferencesKey("reminderHour")
         val mrs = intPreferencesKey("mrsInterval")
         val weekly = booleanPreferencesKey("weeklyReview")
+        val dynamic = booleanPreferencesKey("dynamicColor")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -64,6 +67,7 @@ class SettingsStore(private val context: Context) {
             reminderHour = p[K.reminderHour] ?: 20,
             mrsIntervalDays = p[K.mrs] ?: 28,
             weeklyReview = p[K.weekly] ?: true,
+            dynamicColor = p[K.dynamic] ?: false,
         )
     }
 
@@ -83,6 +87,7 @@ class SettingsStore(private val context: Context) {
             p[K.reminderHour] = n.reminderHour
             p[K.mrs] = n.mrsIntervalDays
             p[K.weekly] = n.weeklyReview
+            p[K.dynamic] = n.dynamicColor
         }
     }
 }
