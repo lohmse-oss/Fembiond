@@ -85,6 +85,35 @@ class AnalyticsTest {
     }
 
     @Test
+    fun drspPairsAcrossCycleBoundary() {
+        // Einträge nur in der Woche vor der letzten Periode und an Tag 4–10 danach (laufender Zyklus)
+        val p = start.plusDays(4 * 28L)
+        val today = p.plusDays(12)
+        val summary = CycleEngine.analyze(periods, emptyList(), today)
+        val occ = (1..7).map { TermOccurrence(p.minusDays(it.toLong()).atTime(20, 0), "gereizt", Category.MIND, 3) } +
+            (3..9).map { TermOccurrence(p.plusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, 3) }
+        val r = Analytics.analyze(AnalysisInput(summary, occ, emptyList(), emptyList(), emptyList(), start, today))
+        val pair = r.drspPairs.first { it.periodStart == p }
+        assertTrue(pair.counted)
+        assertEquals(7, pair.preDays)
+        assertEquals(7, pair.postDays)
+        val g = r.drsp.first { it.term == "gereizt" }
+        assertEquals(1, g.cycles)
+        assertEquals(7, g.preHits)
+        assertEquals(0, g.postHits)
+        assertTrue(g.verdict.contains("bestätigen"))
+        // frühere Perioden ohne Einträge zählen nicht – mit Begründung
+        assertTrue(r.drspPairs.filter { it.periodStart != p }.all { !it.counted && it.reason != null })
+    }
+
+    @Test
+    fun drspVerdictForSlightlyLowerBefore() {
+        val d = DrspResult("Unruhe-Episode", Category.MIND, 1.2, 1.4, 1)
+        assertEquals(-14, d.changePercent!!.toInt())
+        assertTrue(d.verdict.contains("ruhiger"))
+    }
+
+    @Test
     fun projectDayForFutureDate() {
         val s = build().summary
         val future = s.current!!.cycleStart.plusDays(40)

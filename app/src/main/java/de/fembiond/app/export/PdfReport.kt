@@ -183,7 +183,7 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
         val drsp = r.drsp.take(10)
         if (drsp.isNotEmpty()) {
             heading("Vor der Periode vs. danach (DRSP-Methode)")
-            text("Mittlere Stärke 0–5: 7 Tage vor der Periode gegenüber Zyklustag 4–10. * = mind. 30 % stärker bei 2+ Zyklen.", small)
+            text("Mittlere Stärke 0–5: 7 Tage vor jeder Periode gegenüber Tag 4–10 danach. * = mind. 30 % stärker bei 2+ Perioden.", small)
             drsp.forEach { d ->
                 text("${if (d.significant) "* " else "  "}${d.term}: ${de1(d.premenstrual)} vs. ${de1(d.postmenstrual)}" +
                     (d.changePercent?.let { " (${if (it >= 0) "+" else ""}${it.roundToInt()} %)" } ?: " (nur prämenstruell)"))

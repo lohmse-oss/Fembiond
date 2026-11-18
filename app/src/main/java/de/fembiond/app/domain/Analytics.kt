@@ -46,12 +46,43 @@ data class DrspResult(
     val category: Category,
     val premenstrual: Double,
     val postmenstrual: Double,
+    /** Anzahl ausgewerteter Perioden (Paare „Woche davor“ / „Tag 4–10 danach“). */
     val cycles: Int,
+    val preDays: Int = 0,
+    val postDays: Int = 0,
+    /** Tage, an denen der Begriff im jeweiligen Fenster auftrat. */
+    val preHits: Int = 0,
+    val postHits: Int = 0,
 ) {
     val changePercent: Double? get() = if (postmenstrual <= 0.0) null else (premenstrual - postmenstrual) / postmenstrual * 100
     /** DRSP-Kriterium: prämenstruell mindestens 30 % stärker (bzw. nur prämenstruell vorhanden). */
     val significant: Boolean get() = cycles >= 2 && premenstrual >= 0.5 && (postmenstrual == 0.0 || (changePercent ?: 0.0) >= 30.0)
+
+    /** Einordnung in Alltagssprache. */
+    val verdict: String
+        get() {
+            val c = changePercent
+            return when {
+                cycles == 0 -> "Noch keine Periode mit genug Einträgen davor und danach – noch keine Aussage möglich."
+                significant && c == null -> "Tritt fast nur vor der Periode auf – deutliches Muster."
+                significant -> "Vor der Periode deutlich stärker (${if (c!! >= 0) "+" else ""}${c.roundToInt()} %) – deutliches Muster."
+                cycles < 2 && (c == null || c >= 30) && premenstrual > postmenstrual -> "Vor der Periode stärker – erst $cycles Periode ausgewertet, das Muster muss sich noch bestätigen."
+                c == null -> "Nur vor der Periode beobachtet, aber selten – noch kein Muster."
+                c >= 10 -> "Vor der Periode etwas stärker – noch kein deutliches Muster (ab +30 % über 2 Perioden)."
+                c <= -10 -> "Vor der Periode etwas ruhiger als danach – kein Hinweis auf eine Verstärkung vor der Periode."
+                else -> "Vorher und danach etwa gleich – kein Zusammenhang mit der Periode erkennbar."
+            }
+        }
 }
+
+/** Ein Paar aus „7 Tage vor der Periode“ und „Tag 4–10 danach“ für eine Periode. */
+data class DrspPair(
+    val periodStart: LocalDate,
+    val preDays: Int,
+    val postDays: Int,
+    val counted: Boolean,
+    val reason: String?,
+)
 
 data class UnrestPhaseStat(
     val phase: Phase,
@@ -121,6 +152,7 @@ data class AnalysisResult(
     val heatmap: Heatmap,
     val phaseRates: List<PhaseRate>,
     val drsp: List<DrspResult>,
+    val drspPairs: List<DrspPair>,
     val unrestByPhase: List<UnrestPhaseStat>,
     val unrestTotal: Int,
     val panicTotal: Int,
@@ -190,7 +222,8 @@ object Analytics {
         val cycles = cycleStats(s, input.from, input.to)
         val heatmap = heatmap(topTerms.take(15), dayWeight, dayInfo)
         val phaseRates = phaseRates(topTerms.take(20), dayWeight, dayInfo)
-        val drsp = drsp(topTerms, dayWeight, dayInfo, s)
+        val drspPairs = drspPairs(s, dayWeight, input.from, input.to)
+        val drsp = drsp(topTerms, dayWeight, drspPairs)
         val unrestByPhase = unrestByPhase(panics, dayWeight, dayInfo, s)
         val events = input.events.filter { inRange(it.date) }
         val anticipation = anticipation(events, panics, dayWeight)
@@ -207,6 +240,7 @@ object Analytics {
             heatmap = heatmap,
             phaseRates = phaseRates,
             drsp = drsp,
+            drspPairs = drspPairs,
             unrestByPhase = unrestByPhase,
             unrestTotal = panics.size,
             panicTotal = panics.count { it.isPanic },
@@ -284,19 +318,39 @@ object Analytics {
         }
     }
 
+    /** Mindestanzahl erfasster Tage je Fenster, damit eine Periode zählt. */
+    const val DRSP_MIN_DAYS = 2
+
+    /**
+     * Paare je Periode (DRSP): Woche vor der Periode (Tag −7…−1) und Zyklustag 4–10 nach derselben Periode.
+     * Der laufende Zyklus zählt mit, sobald Tag 4–10 erreicht ist.
+     */
+    fun drspPairs(s: CycleSummary, dayWeight: Map<LocalDate, Double>, from: LocalDate, to: LocalDate, today: LocalDate = to): List<DrspPair> =
+        s.cycles.filter { it.index > 0 }.mapNotNull { c ->
+            val p = c.start
+            if (p.plusDays(9).isBefore(from)) return@mapNotNull null
+            if (p.isAfter(to)) return@mapNotNull null
+            val pre = (1..7).count { dayWeight.containsKey(p.minusDays(it.toLong())) }
+            val post = (3..9).count { dayWeight.containsKey(p.plusDays(it.toLong())) }
+            val postFuture = p.plusDays(3).isAfter(today)
+            val reason = when {
+                postFuture -> "Tag 4–10 nach dieser Periode liegt noch in der Zukunft"
+                pre < DRSP_MIN_DAYS && post < DRSP_MIN_DAYS -> "zu wenige Einträge davor ($pre Tage) und danach ($post Tage)"
+                pre < DRSP_MIN_DAYS -> "nur $pre erfasste${if (pre == 1) "r" else ""} Tag${if (pre == 1) "" else "e"} in der Woche davor (mind. $DRSP_MIN_DAYS)"
+                post < DRSP_MIN_DAYS -> "nur $post erfasste${if (post == 1) "r" else ""} Tag${if (post == 1) "" else "e"} an Tag 4–10 (mind. $DRSP_MIN_DAYS)"
+                else -> null
+            }
+            DrspPair(p, pre, post, reason == null, reason)
+        }
+
     private fun drsp(
         terms: List<Map.Entry<Pair<String, Category>, HashMap<LocalDate, Pair<Double, Double>>>>,
         dayWeight: Map<LocalDate, Double>,
-        dayInfo: Map<LocalDate, DayInfo?>,
-        s: CycleSummary,
+        pairs: List<DrspPair>,
     ): List<DrspResult> {
-        val pre = dayWeight.keys.filter { dayInfo[it]?.daysBeforeNext in 1..7 }
-        val post = dayWeight.keys.filter { val i = dayInfo[it]; i != null && i.cycleDay in 4..10 && i.daysBeforeNext != null }
-        val cyclesBoth = s.cycles.count { c ->
-            val nextCycle = s.cycles.getOrNull(c.index + 1)
-            pre.count { d -> dayInfo[d]?.cycleIndex == c.index } >= 2 &&
-                post.count { d -> dayInfo[d]?.cycleIndex == c.index } >= 2 && nextCycle != null
-        }
+        val counted = pairs.filter { it.counted }
+        val pre = counted.flatMap { pr -> (1..7).map { pr.periodStart.minusDays(it.toLong()) } }.filter { dayWeight.containsKey(it) }.distinct()
+        val post = counted.flatMap { pr -> (3..9).map { pr.periodStart.plusDays(it.toLong()) } }.filter { dayWeight.containsKey(it) }.distinct()
         if (pre.isEmpty() || post.isEmpty()) return emptyList()
         fun mean(days: List<LocalDate>, map: Map<LocalDate, Pair<Double, Double>>): Double {
             var sum = 0.0
@@ -305,7 +359,11 @@ object Analytics {
             return if (w == 0.0) 0.0 else sum / w
         }
         return terms.filter { it.key.second != Category.LIFE }.map { (key, map) ->
-            DrspResult(key.first, key.second, mean(pre, map), mean(post, map), cyclesBoth)
+            DrspResult(
+                key.first, key.second, mean(pre, map), mean(post, map), counted.size,
+                preDays = pre.size, postDays = post.size,
+                preHits = pre.count { map.containsKey(it) }, postHits = post.count { map.containsKey(it) },
+            )
         }.filter { it.premenstrual > 0 || it.postmenstrual > 0 }
             .sortedByDescending { it.premenstrual - it.postmenstrual }
     }
@@ -526,9 +584,9 @@ object Insights {
         r.drsp.filter { it.significant }.take(3).forEach { d ->
             val change = d.changePercent
             out += if (change == null) {
-                "„${d.term}“ tritt fast nur in den 7 Tagen vor der Periode auf (${d.cycles} Zyklen ausgewertet)."
+                "„${d.term}“ tritt fast nur in den 7 Tagen vor der Periode auf (${d.cycles} Perioden ausgewertet)."
             } else {
-                "„${d.term}“ ist in den 7 Tagen vor der Periode etwa ${change.roundToInt()} % stärker als in der Woche nach der Periode (${d.cycles} Zyklen ausgewertet)."
+                "„${d.term}“ ist in den 7 Tagen vor der Periode etwa ${change.roundToInt()} % stärker als an Tag 4–10 danach (${d.cycles} Perioden ausgewertet)."
             }
         }
         r.unrestByPhase.filter { (it.relativeFrequency ?: 0.0) >= 1.5 && it.count >= 2 }.maxByOrNull { it.relativeFrequency!! }?.let {

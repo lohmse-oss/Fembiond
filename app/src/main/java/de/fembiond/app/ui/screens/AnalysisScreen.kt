@@ -66,6 +66,8 @@ import de.fembiond.app.ui.CycleOverlayChart
 import de.fembiond.app.ui.overlaySeries
 import androidx.compose.material.icons.rounded.CalendarViewMonth
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import de.fembiond.app.domain.UnrestLevel
 import java.time.LocalDate
@@ -142,6 +144,73 @@ fun AnticipationChart(points: List<de.fembiond.app.domain.AnticipationPoint>) {
                 )
                 Text(if (p.offset == 0) "Tag" else "%+d".format(p.offset), style = MaterialTheme.typography.labelSmall, maxLines = 1)
             }
+        }
+    }
+}
+
+/** Vergleich „vor der Periode“ / „danach“ mit Datenbasis und Einordnung in Alltagssprache. */
+@Composable
+fun DrspCard(pairs: List<de.fembiond.app.domain.DrspPair>, results: List<de.fembiond.app.domain.DrspResult>) {
+    val pc = LocalPhaseColors.current
+    var showBasis by remember { mutableStateOf(false) }
+    var showAll by remember { mutableStateOf(false) }
+    val counted = pairs.count { it.counted }
+    SectionCard(title = "Vor der Periode vs. danach", icon = Icons.Rounded.CompareArrows) {
+        Text("So funktioniert's", style = MaterialTheme.typography.titleSmall)
+        HintText("Für jede Periode werden zwei Wochen verglichen: die 7 Tage davor und Tag 4–10 danach. Pro Tag zählt die Stärke (0–5) – bei Unruhe die höchste Stufe des Tages. Ein Tag mit Einträgen, an dem etwas nicht auftrat, zählt als 0. Tage ohne Einträge zählen nicht.")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Datenbasis: $counted von ${pairs.size} Perioden auswertbar",
+                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                color = if (counted >= 2) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+            )
+            androidx.compose.material3.TextButton(onClick = { showBasis = !showBasis }) { Text(if (showBasis) "ausblenden" else "Details") }
+        }
+        if (counted < 2) HintText("Eine Periode zählt, wenn in der Woche davor und an Tag 4–10 danach jeweils an mindestens ${de.fembiond.app.domain.Analytics.DRSP_MIN_DAYS} Tagen etwas eingetragen wurde. Für ein verlässliches Muster braucht es mindestens 2 solcher Perioden.")
+        androidx.compose.animation.AnimatedVisibility(showBasis) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (pairs.isEmpty()) HintText("Im Zeitraum liegt noch kein Periodenbeginn mit Vorgeschichte.")
+                pairs.sortedByDescending { it.periodStart }.forEach { p ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            if (p.counted) Icons.Rounded.CheckCircle else Icons.Rounded.RemoveCircleOutline, null,
+                            tint = if (p.counted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 2.dp).size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("Periode ab ${p.periodStart.short()}", style = MaterialTheme.typography.bodyMedium)
+                            HintText("Erfasste Tage: davor ${p.preDays}/7 · danach ${p.postDays}/7" + (p.reason?.let { " – $it" } ?: " – ausgewertet"))
+                        }
+                    }
+                }
+            }
+        }
+        if (results.isEmpty()) {
+            HintText("Noch keine Werte – sobald eine Periode auswertbar ist, erscheinen hier die Vergleiche.")
+        } else {
+            HorizontalDivider()
+            val shown = if (showAll) results else results.take(5)
+            shown.forEachIndexed { idx, d ->
+                if (idx > 0) Spacer(Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(d.term, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                            color = if (d.significant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                        Text(d.changePercent?.let { (if (it >= 0) "+" else "") + it.roundToInt() + " %" } ?: "nur vorher", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Text(d.verdict, style = MaterialTheme.typography.bodySmall,
+                        color = if (d.significant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    RatioBar("7 Tage davor", d.premenstrual / 5, "Ø ${d.premenstrual.fmt1()}", pc.luteal)
+                    HintText("an ${d.preHits} von ${d.preDays} erfassten Tagen aufgetreten")
+                    RatioBar("Tag 4–10 danach", d.postmenstrual / 5, "Ø ${d.postmenstrual.fmt1()}", pc.follicular)
+                    HintText("an ${d.postHits} von ${d.postDays} erfassten Tagen aufgetreten")
+                }
+            }
+            if (results.size > 5) androidx.compose.material3.TextButton(onClick = { showAll = !showAll }) {
+                Text(if (showAll) "Weniger anzeigen" else "Alle ${results.size} Begriffe anzeigen")
+            }
+            HintText("Prozent = Unterschied „davor“ gegenüber „danach“. Ein deutliches Muster (farbig) gilt ab +30 % über mindestens 2 Perioden.")
         }
     }
 }
@@ -274,22 +343,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             HeatmapView(result.heatmap)
         }
 
-        val drsp = result.drsp.filter { it.cycles >= 1 }.take(8)
-        if (drsp.isNotEmpty()) SectionCard(title = "Vor der Periode vs. danach", icon = Icons.Rounded.CompareArrows) {
-            HintText("Mittlere Stärke (0–5) in den 7 Tagen vor der Periode verglichen mit Tag 4–10 – Methode nach DRSP. Hervorgehoben: mindestens 30 % stärker bei 2+ Zyklen.")
-            drsp.forEach { d ->
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(d.term, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
-                            color = if (d.significant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                        Text(d.changePercent?.let { (if (it >= 0) "+" else "") + it.roundToInt() + " %" } ?: "nur prämenstruell", style = MaterialTheme.typography.labelLarge)
-                    }
-                    RatioBar("vorher", d.premenstrual / 5, d.premenstrual.fmt1(), pc.luteal)
-                    RatioBar("danach", d.postmenstrual / 5, d.postmenstrual.fmt1(), pc.follicular)
-                }
-            }
-            HintText("Ausgewertete Zyklen: ${drsp.first().cycles}")
-        }
+        DrspCard(result.drspPairs, result.drsp)
 
         PerimenopauseCard(data, from, to)
 

@@ -46,6 +46,12 @@ import de.fembiond.app.domain.AnalysisInput
 import de.fembiond.app.domain.Analytics
 import de.fembiond.app.domain.Category
 import de.fembiond.app.export.Backup
+import de.fembiond.app.export.DiagnosticExport
+import androidx.compose.material.icons.rounded.DataObject
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.Alignment
 import de.fembiond.app.export.PdfReport
 import de.fembiond.app.ui.AppViewModel
 import de.fembiond.app.ui.HintText
@@ -66,6 +72,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     val input = AnalysisInput(data.summary, data.occurrences, data.episodes, data.medications, data.gad, from, to, categories, events = data.events)
     val result = remember(data, from, to, categories) { Analytics.analyze(input) }
 
+    var includeNotes by remember { mutableStateOf(false) }
     var passwordFor by remember { mutableStateOf<String?>(null) } // "backup" | "restore"
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
     var pendingBackupPassword by remember { mutableStateOf<CharArray?>(null) }
@@ -134,6 +141,34 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                     }
                 }) { Icon(Icons.Rounded.Share, null); Spacer(Modifier.width(6.dp)); Text("Teilen") }
                 OutlinedButton(onClick = { savePdf.launch("fembiond-bericht-${data.today}.pdf") }) { Text("Speichern unter …") }
+            }
+        }
+
+        SectionCard(title = "Daten zur Prüfung (Rohdaten + Rechenweg)", icon = Icons.Rounded.DataObject) {
+            HintText("Alle Einträge und die von der App berechneten Zwischenschritte (Zyklen, Zuordnung jedes Tages zu Phase und Vergleichsfenster, ausgewertete Perioden, Ergebnisse) als JSON-Datei. Damit lässt sich nachprüfen, ob die Auswertung plausibel rechnet – z. B. indem du die Datei an Claude gibst. Name und Geburtsdatum sind nicht enthalten.")
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { includeNotes = !includeNotes }) {
+                androidx.compose.material3.Checkbox(includeNotes, { includeNotes = it })
+                Text("Notiztexte einschließen", style = MaterialTheme.typography.bodyMedium)
+            }
+            de.fembiond.app.ui.ChipFlow {
+                Button(onClick = {
+                    scope.launch {
+                        val file = withContext(Dispatchers.IO) {
+                            val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+                            File(dir, "fembiond-daten-${data.today}.json").also { it.writeText(DiagnosticExport.build(data, includeNotes)) }
+                        }
+                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+                        val send = Intent(Intent.ACTION_SEND).apply {
+                            type = "application/json"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                        context.startActivity(Intent.createChooser(send, "Daten teilen"))
+                    }
+                }) { Icon(Icons.Rounded.Share, null); Spacer(Modifier.width(6.dp)); Text("Als Datei teilen") }
+                OutlinedButton(onClick = {
+                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(ClipData.newPlainText("Fembiond Daten", DiagnosticExport.build(data, includeNotes)))
+                    toast(context, "In die Zwischenablage kopiert")
+                }) { Icon(Icons.Rounded.ContentCopy, null); Spacer(Modifier.width(6.dp)); Text("Kopieren") }
             }
         }
 
