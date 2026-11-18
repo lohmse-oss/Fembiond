@@ -16,6 +16,7 @@ import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import de.fembiond.app.domain.StressForecast
@@ -101,10 +102,12 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     val hour = java.time.LocalTime.now().hour
     val greet = when (hour) { in 5..10 -> "Guten Morgen"; in 11..17 -> "Hallo"; in 18..22 -> "Guten Abend"; else -> "Gute Nacht" }
 
+    val homeScroll = rememberScrollState()
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().height(420.dp).background(phaseHeaderBrush(phase)))
+        ScrollTopButton(homeScroll, Modifier.align(Alignment.BottomEnd).padding(16.dp).zIndex(1f))
         Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 16.dp),
+            Modifier.fillMaxSize().verticalScroll(homeScroll).statusBarsPadding().padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
         Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {

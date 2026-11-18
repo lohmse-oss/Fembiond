@@ -144,6 +144,7 @@ object Guide {
 - **Jahresübersicht**: ein Kästchen pro Tag der letzten 12 Monate, gefärbt nach Unruhe; Periodentage umrandet.
 - **Zyklen übereinander**: die letzten Zyklen nach Zyklustag übereinandergelegt (Unruhe, Schlaf, Energie oder Hitzewallungen). Die kräftige Linie ist der Mittelwert.
 - **Zusammenhänge** sind Hinweise, keine Beweise für Ursachen.
+- Die **Sprungleiste** (Lesezeichen-Symbol) unter dem Titel führt direkt zu einem Bereich. Nach etwas Scrollen erscheint unten rechts eine Taste **nach oben** – das gibt es auf allen langen Seiten.
 - Es erscheinen nur Auswertungen, zu denen es Einträge gibt. Je mehr du erfasst, desto mehr Bereiche kommen dazu.
 """.trimIndent()),
         GuideSection("terms", "Begriffe verwalten", Icons.AutoMirrored.Rounded.Label, """

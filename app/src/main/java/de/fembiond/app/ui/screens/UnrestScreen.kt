@@ -87,6 +87,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
     Screen(
         title = "Unruhe erfassen",
         nav = nav,
+        jumpBar = true,
         actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("unrest")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } },
         bottomBar = {
             Surface(tonalElevation = 3.dp) {

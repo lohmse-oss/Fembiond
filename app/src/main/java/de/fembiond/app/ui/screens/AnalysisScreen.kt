@@ -401,7 +401,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
     val showPms = Category.MIND in categories || Category.BODY in categories
     val pms = remember(data, from, to) { de.fembiond.app.domain.Pms.analyze(data.summary, data.occurrences, data.episodes, data.today, from, to) }
 
-    Screen(title = "Auswertung", nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("analysis")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
+    Screen(title = "Auswertung", jumpBar = true, nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("analysis")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         RangeAndFilter(data, range, { range = it }, categories, { categories = it })
         HintText("Zeitraum ${from.short()} – ${to.short()} · ${result.trackedDays} Tage mit Einträgen")
 

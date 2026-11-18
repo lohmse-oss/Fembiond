@@ -117,7 +117,7 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
     ) == BiometricManager.BIOMETRIC_SUCCESS
 
-    Screen(title = "Einstellungen", nav = nav) {
+    Screen(title = "Einstellungen", jumpBar = true, nav = nav) {
         SectionCard(title = "Darstellung") {
             ThemeMode.entries.forEach { m ->
                 Row(Modifier.fillMaxWidth().clickable { vm.run { updateSettings { it.copy(theme = m) } } }, verticalAlignment = Alignment.CenterVertically) {
