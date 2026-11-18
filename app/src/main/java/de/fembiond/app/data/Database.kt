@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
@@ -19,9 +20,11 @@ import javax.crypto.spec.GCMParameterSpec
     entities = [
         PeriodEntity::class, TermEntity::class, SynonymEntity::class, EntryEntity::class, EntryTermEntity::class,
         PanicEntity::class, PanicTermEntity::class, MedPhaseEntity::class, IntakeEntity::class, GadEntity::class,
+        EventEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
+    autoMigrations = [AutoMigration(from = 1, to = 2)],
 )
 abstract class FembiondDatabase : RoomDatabase() {
     abstract fun dao(): FembiondDao

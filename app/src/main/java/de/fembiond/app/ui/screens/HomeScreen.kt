@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Medication
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Quiz
 import androidx.compose.material.icons.rounded.WaterDrop
@@ -75,7 +77,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         if (current == null) {
             SectionCard(title = "Willkommen", icon = Icons.Rounded.Info) {
                 HintText("Es ist noch keine Periode erfasst. Trage vergangene Perioden nach oder starte mit der heutigen.")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChipFlow {
                     Button(onClick = { nav.navigate(Routes.HISTORY) }) { Text("Perioden nachtragen") }
                     OutlinedButton(onClick = { vm.run { startPeriod(today) } }) { Text("Periode heute") }
                 }
@@ -106,14 +108,15 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 }
                 Text(predText, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 if (pred.withdrawalBleed) {
-                    HintText("Erwartet als Abbruchblutung nach der letzten Einnahme laut Schema.", Modifier.fillMaxWidth())
+                    HintText("Erwartet als Abbruchblutung nach der letzten Einnahme laut Schema.", Modifier.fillMaxWidth(), center = true)
                 } else if (pred.overdueDays == 0) {
                     val a = daysBetween(today, pred.from).coerceAtLeast(0)
                     val b = daysBetween(today, pred.to).coerceAtLeast(0)
-                    HintText(if (a == b) "in $a Tagen" else "in etwa $a–$b Tagen" + if (s.naturalCompleteCount < 3) " · Prognose wird mit mehr Zyklen genauer" else "", Modifier.fillMaxWidth())
+                    val range = if (a == b) "in $a Tagen" else "in etwa $a–$b Tagen"
+                    HintText(range + if (s.naturalCompleteCount < 3) " · Prognose wird mit mehr Zyklen genauer" else "", Modifier.fillMaxWidth(), center = true)
                 }
                 current.fertileFrom?.let {
-                    HintText("Fruchtbares Fenster (geschätzt): ${it.dm()} – ${current.fertileTo!!.dm()}", Modifier.fillMaxWidth())
+                    HintText("Fruchtbares Fenster (geschätzt): ${it.dm()} – ${current.fertileTo!!.dm()}", Modifier.fillMaxWidth(), center = true)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     if (current.inPeriod) {
@@ -146,16 +149,27 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FilledTonalButton(
-                onClick = { nav.navigate(Routes.PANIC) },
+                onClick = { nav.navigate(Routes.unrest()) },
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = MaterialTheme.shapes.large,
-                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
-            ) { Icon(Icons.Rounded.MonitorHeart, null); Spacer(Modifier.width(8.dp)); Text("Panikattacke") }
+                colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
+            ) { Icon(Icons.Rounded.Waves, null); Spacer(Modifier.width(8.dp)); Text("Unruhe", maxLines = 1) }
             FilledTonalButton(
                 onClick = { nav.navigate(Routes.entry(note = true)) },
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = MaterialTheme.shapes.large,
-            ) { Icon(Icons.Rounded.EditNote, null); Spacer(Modifier.width(8.dp)); Text("Notiz") }
+            ) { Icon(Icons.Rounded.EditNote, null); Spacer(Modifier.width(8.dp)); Text("Notiz", maxLines = 1) }
+        }
+
+        // Anstehende Ereignisse mit Zyklusprognose
+        val upcoming = data.events.filter { !it.date.isBefore(today) && daysBetween(today, it.date) <= 21 }.sortedBy { it.date }.take(3)
+        SectionCard(title = "Anstehend", icon = Icons.Rounded.Event) {
+            if (upcoming.isEmpty()) HintText("Keine Ereignisse in den nächsten 3 Wochen. Plane Feiern, Essen gehen oder Konzerte, um zu sehen, in welche Zyklusphase sie fallen.")
+            upcoming.forEachIndexed { i, e ->
+                if (i > 0) androidx.compose.material3.HorizontalDivider()
+                EventItem(e, data, onClick = { nav.navigate(Routes.EVENTS) })
+            }
+            TextButton(onClick = { nav.navigate(Routes.EVENTS) }) { Text(if (upcoming.isEmpty()) "Ereignis planen" else "Alle Ereignisse") }
         }
 
         // Blutung erfasst, aber keine Periode aktiv
@@ -198,16 +212,10 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
 
         // Heutige Einträge
         val todays = data.entries.filter { it.time.toLocalDate() == today }
-        val panicsToday = data.panics.filter { it.date == today }
+        val panicsToday = data.episodes.filter { it.date == today }.sortedBy { it.time }
         if (todays.isNotEmpty() || panicsToday.isNotEmpty()) {
             SectionCard(title = "Heute erfasst") {
-                panicsToday.forEach { p ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.MonitorHeart, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("${p.time.hm()} Panikattacke, Stärke ${p.intensity}" + (p.durationMinutes?.let { ", ca. $it Min." } ?: ""))
-                    }
-                }
+                panicsToday.forEach { p -> EpisodeRow(p, data, onClick = { nav.navigate(Routes.day(today)) }) }
                 todays.sortedBy { it.time }.forEach { e ->
                     Column(Modifier.fillMaxWidth().clickable { nav.navigate(Routes.day(today)) }) {
                         Text(e.time.hm(), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)

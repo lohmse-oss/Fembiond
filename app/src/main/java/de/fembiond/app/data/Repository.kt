@@ -6,7 +6,9 @@ import de.fembiond.app.domain.CycleSummary
 import de.fembiond.app.domain.GadRecord
 import de.fembiond.app.domain.Lexicon
 import de.fembiond.app.domain.MedicationPhase
-import de.fembiond.app.domain.PanicRecord
+import de.fembiond.app.domain.Episode
+import de.fembiond.app.domain.EventOutcome
+import de.fembiond.app.domain.PlannedEvent
 import de.fembiond.app.domain.PeriodRecord
 import de.fembiond.app.domain.ScaleTerms
 import de.fembiond.app.domain.ScheduleType
@@ -60,7 +62,8 @@ data class AppData(
     val intakes: Set<Pair<Long, LocalDate>>,
     val occurrences: List<TermOccurrence>,
     val entries: List<EntryView>,
-    val panics: List<PanicRecord>,
+    val episodes: List<Episode>,
+    val events: List<PlannedEvent>,
     val gad: List<GadRecord>,
     val terms: List<TermInfo>,
     val summary: CycleSummary,
@@ -78,7 +81,7 @@ data class AppData(
 
 @Serializable
 data class BackupData(
-    val version: Int = 1,
+    val version: Int = 2,
     val periods: List<PeriodEntity>,
     val terms: List<TermEntity>,
     val synonyms: List<SynonymEntity>,
@@ -89,6 +92,7 @@ data class BackupData(
     val meds: List<MedPhaseEntity>,
     val intakes: List<IntakeEntity>,
     val gad: List<GadEntity>,
+    val events: List<EventEntity> = emptyList(),
 )
 
 class Repository(
@@ -100,8 +104,8 @@ class Repository(
         scope.launch { seedIfEmpty() }
     }
 
+    /** Fügt fehlende Startbegriffe hinzu (auch nach Updates); vorhandene bleiben unverändert. */
     private suspend fun seedIfEmpty() {
-        if (dao.termsOnce().isNotEmpty()) return
         val seeds = Lexicon.entries.filter { it.suggested }.map {
             TermEntity(label = it.label, category = it.category.name, valence = it.valence?.value, builtIn = true)
         } + listOf(
@@ -117,8 +121,8 @@ class Repository(
     private val records: Flow<Triple<List<OccurrenceRow>, List<EntryEntity>, Pair<List<PanicEntity>, List<PanicTermRow>>>> =
         combine(dao.occurrences(), dao.entries(), dao.panics(), dao.panicTerms()) { o, e, p, pt -> Triple(o, e, p to pt) }
 
-    private val vocab: Flow<Triple<List<TermEntity>, List<SynonymEntity>, Pair<List<IntakeEntity>, List<GadEntity>>>> =
-        combine(dao.terms(), dao.synonyms(), dao.intakes(), dao.gad()) { t, s, i, g -> Triple(t, s, i to g) }
+    private val vocab: Flow<Triple<List<TermEntity>, List<SynonymEntity>, Triple<List<IntakeEntity>, List<GadEntity>, List<EventEntity>>>> =
+        combine(dao.terms(), dao.synonyms(), dao.intakes(), dao.gad(), dao.events()) { t, s, i, g, e -> Triple(t, s, Triple(i, g, e)) }
 
     val data: StateFlow<AppData?> = combine(base, records, vocab) { b, r, v -> build(b, r, v) }
         .stateIn(scope, SharingStarted.Eagerly, null)
@@ -129,7 +133,7 @@ class Repository(
     private fun build(
         b: Triple<Settings, List<PeriodEntity>, List<MedPhaseEntity>>,
         r: Triple<List<OccurrenceRow>, List<EntryEntity>, Pair<List<PanicEntity>, List<PanicTermRow>>>,
-        v: Triple<List<TermEntity>, List<SynonymEntity>, Pair<List<IntakeEntity>, List<GadEntity>>>,
+        v: Triple<List<TermEntity>, List<SynonymEntity>, Triple<List<IntakeEntity>, List<GadEntity>, List<EventEntity>>>,
     ): AppData {
         val today = LocalDate.now()
         val (settings, periodE, medE) = b
@@ -145,11 +149,12 @@ class Repository(
         val ptByPanic = r.third.second.groupBy { it.panicId }
         val panics = r.third.first.map { p ->
             val t = ptByPanic[p.id].orEmpty()
-            PanicRecord(
+            Episode(
                 id = p.id,
                 time = time(p.day, p.minute),
                 durationMinutes = p.durationMinutes,
-                intensity = p.intensity,
+                level = p.level,
+                eventId = p.eventId,
                 symptoms = t.filter { it.category == Category.PANIC_SYMPTOM.name }.map { it.label },
                 triggers = t.filter { it.category == Category.PANIC_TRIGGER.name }.map { it.label },
                 helped = t.filter { it.category == Category.PANIC_HELP.name }.map { it.label },
@@ -188,7 +193,11 @@ class Repository(
             intakes = rest.first.filter { it.taken }.map { it.phaseId to LocalDate.ofEpochDay(it.day) }.toSet(),
             occurrences = occ,
             entries = entries,
-            panics = panics,
+            episodes = panics,
+            events = rest.third.map { e ->
+                PlannedEvent(e.id, LocalDate.ofEpochDay(e.day), e.type, e.title, e.note,
+                    runCatching { EventOutcome.valueOf(e.outcome) }.getOrDefault(EventOutcome.PLANNED))
+            },
             gad = rest.second.map { GadRecord(LocalDate.ofEpochDay(it.day), it.score) },
             terms = terms,
             summary = summary,
@@ -235,16 +244,32 @@ class Repository(
 
     // ---------- Panik ----------
 
-    suspend fun savePanic(
-        time: LocalDateTime, duration: Int?, intensity: Int,
-        symptoms: List<String>, triggers: List<String>, helped: List<String>, note: String, backfilled: Boolean = false,
+    suspend fun saveEpisode(
+        time: LocalDateTime, duration: Int?, level: Int,
+        symptoms: List<String>, triggers: List<String>, helped: List<String>, note: String,
+        backfilled: Boolean = false, eventId: Long? = null,
     ) {
         val now = System.currentTimeMillis()
         val id = dao.insertPanic(
-            PanicEntity(day = time.toLocalDate().toEpochDay(), minute = time.hour * 60 + time.minute, durationMinutes = duration, intensity = intensity, note = note.trim(), backfilled = backfilled)
+            PanicEntity(
+                day = time.toLocalDate().toEpochDay(), minute = time.hour * 60 + time.minute, durationMinutes = duration,
+                intensity = level, note = note.trim(), backfilled = backfilled, level = level, eventId = eventId,
+            )
         )
         val terms = symptoms.map { Selection(it, Category.PANIC_SYMPTOM) } + triggers.map { Selection(it, Category.PANIC_TRIGGER) } + helped.map { Selection(it, Category.PANIC_HELP) }
         dao.insertPanicTerms(terms.map { PanicTermEntity(id, termId(it, now)) })
+    }
+
+    // ---------- Ereignisse ----------
+
+    suspend fun saveEvent(e: PlannedEvent): Long {
+        termId(Selection(e.type, Category.EVENT_TYPE), System.currentTimeMillis())
+        return dao.upsertEvent(EventEntity(e.id, e.date.toEpochDay(), e.type, e.title.trim(), e.note.trim(), e.outcome.name))
+    }
+
+    suspend fun deleteEvent(id: Long) {
+        dao.unlinkEvent(id)
+        dao.deleteEvent(id)
     }
 
     suspend fun deletePanic(id: Long) = dao.deletePanic(id)
@@ -308,7 +333,7 @@ class Repository(
         BackupData(
             periods = dao.periodsOnce(), terms = dao.termsOnce(), synonyms = dao.allSynonyms(), entries = dao.allEntries(),
             entryTerms = dao.allEntryTerms(), panics = dao.allPanics(), panicTerms = dao.allPanicTerms(),
-            meds = dao.allMedPhases(), intakes = dao.allIntakes(), gad = dao.allGad(),
+            meds = dao.allMedPhases(), intakes = dao.allIntakes(), gad = dao.allGad(), events = dao.allEvents(),
         ),
     )
 
@@ -317,7 +342,7 @@ class Repository(
         dao.clearAll()
         dao.restorePeriods(b.periods); dao.restoreTerms(b.terms); dao.restoreSynonyms(b.synonyms)
         dao.restoreEntries(b.entries); dao.restoreEntryTerms(b.entryTerms); dao.restorePanics(b.panics)
-        dao.restorePanicTerms(b.panicTerms); dao.restoreMeds(b.meds); dao.restoreIntakes(b.intakes); dao.restoreGad(b.gad)
+        dao.restorePanicTerms(b.panicTerms); dao.restoreMeds(b.meds); dao.restoreIntakes(b.intakes); dao.restoreGad(b.gad); dao.restoreEvents(b.events)
     }
 
     companion object {

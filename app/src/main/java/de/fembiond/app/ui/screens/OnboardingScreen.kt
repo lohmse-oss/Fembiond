@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -123,9 +124,9 @@ fun OnboardingScreen(vm: AppViewModel, data: AppData) {
 @Composable
 fun Stepper(label: String, value: Int, range: IntRange, unit: String, onChange: (Int) -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.weight(1f))
+        Text(label, Modifier.weight(1f).padding(end = 4.dp))
         IconButton(onClick = { if (value > range.first) onChange(value - 1) }) { Icon(Icons.Rounded.Remove, "weniger") }
-        Text("$value $unit", style = MaterialTheme.typography.titleMedium)
+        Text("$value $unit".trim(), style = MaterialTheme.typography.titleMedium, maxLines = 1, softWrap = false)
         IconButton(onClick = { if (value < range.last) onChange(value + 1) }) { Icon(Icons.Rounded.Add, "mehr") }
     }
 }
@@ -147,10 +148,11 @@ fun HistoryEditor(vm: AppViewModel, data: AppData) {
             singleLine = true, modifier = Modifier.fillMaxWidth(),
         )
         OutlinedTextField(note, { note = it }, label = { Text("Notiz dazu (optional), z. B. „starke Krämpfe, unruhig“") }, modifier = Modifier.fillMaxWidth())
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { approx = !approx }) {
             Checkbox(approx, { approx = it }); Text("Datum ist ungefähr")
-            Spacer(Modifier.weight(1f))
-            FilledTonalButton(onClick = {
+        }
+        Row {
+            FilledTonalButton(modifier = Modifier.fillMaxWidth(), onClick = {
                 val r = DateInput.parseRange(input, data.today)
                 if (r == null) { error = "Datum nicht erkannt" } else {
                     val (start, end) = r
@@ -163,7 +165,7 @@ fun HistoryEditor(vm: AppViewModel, data: AppData) {
                     }
                     input = ""; note = ""; approx = false
                 }
-            }) { Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(4.dp)); Text("Hinzufügen") }
+            }) { Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(4.dp)); Text("Periode hinzufügen") }
         }
     }
 
@@ -189,12 +191,10 @@ fun HistoryEditor(vm: AppViewModel, data: AppData) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(p.start.short() + (p.end?.let { " – ${it.short()}" } ?: ""), style = MaterialTheme.typography.bodyLarge)
-                    val tags = listOfNotNull("ungefähr".takeIf { p.approximate }, "nachgetragen".takeIf { p.backfilled })
+                    val tags = listOfNotNull("nachgetragen".takeIf { p.backfilled })
                     if (tags.isNotEmpty()) HintText(tags.joinToString(" · "))
                 }
-                IconButton(onClick = { vm.run { updatePeriod(p.copy(approximate = !p.approximate)) } }) {
-                    Text(if (p.approximate) "≈" else "=", style = MaterialTheme.typography.titleLarge)
-                }
+                androidx.compose.material3.FilterChip(p.approximate, { vm.run { updatePeriod(p.copy(approximate = !p.approximate)) } }, { Text("ca.") })
                 IconButton(onClick = { vm.run { deletePeriod(p.id) } }) { Icon(Icons.Rounded.Delete, "Löschen") }
             }
         }
@@ -204,20 +204,21 @@ fun HistoryEditor(vm: AppViewModel, data: AppData) {
 @Composable
 fun PanicBackfill(vm: AppViewModel, data: AppData) {
     var input by remember { mutableStateOf("") }
-    var intensity by remember { mutableStateOf<Int?>(3) }
+    var intensity by remember { mutableStateOf<Int?>(5) }
     var error by remember { mutableStateOf(false) }
-    SectionCard(title = "Bekannte Panikattacken nachtragen", icon = Icons.Rounded.MonitorHeart) {
+    SectionCard(title = "Bekannte Unruhe / Panikattacken nachtragen", icon = Icons.Rounded.MonitorHeart) {
         OutlinedTextField(input, { input = it; error = false }, label = { Text("Datum, z. B. 12.10.") }, isError = error, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Text("Stufe: 1 leicht · 2 spürbar · 3 stark · 4 sehr stark · 5 Panikattacke", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         IntensitySelector(intensity, { intensity = it })
         OutlinedButton(onClick = {
             val d = DateInput.parseRange(input, data.today)?.first
             if (d == null) error = true else {
-                vm.run { savePanic(d.atTime(12, 0), null, intensity ?: 3, emptyList(), emptyList(), emptyList(), "", backfilled = true) }
+                vm.run { saveEpisode(d.atTime(12, 0), null, intensity ?: 3, emptyList(), emptyList(), emptyList(), "", backfilled = true) }
                 input = ""
             }
         }) { Text("Nachtragen") }
-        val back = data.panics.filter { it.backfilled }
-        if (back.isNotEmpty()) HintText("Nachgetragen: " + back.joinToString { it.date.short() })
+        val back = data.episodes.filter { it.backfilled }
+        if (back.isNotEmpty()) HintText("Nachgetragen: " + back.joinToString { "${it.date.short()} (Stufe ${it.level})" })
     }
 }
 

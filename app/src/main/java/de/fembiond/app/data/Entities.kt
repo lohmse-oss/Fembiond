@@ -1,5 +1,6 @@
 package de.fembiond.app.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -74,6 +75,20 @@ data class PanicEntity(
     val intensity: Int,
     val note: String,
     val backfilled: Boolean,
+    /** Unruhe-Stufe 1–5 (5 = Panikattacke). Ältere Einträge waren Panikattacken. */
+    @ColumnInfo(defaultValue = "5") val level: Int = 5,
+    val eventId: Long? = null,
+)
+
+@Serializable
+@Entity(tableName = "events", indices = [Index("day")])
+data class EventEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val day: Long,
+    val type: String,
+    val title: String,
+    val note: String,
+    val outcome: String,
 )
 
 @Serializable

@@ -7,13 +7,14 @@ import kotlin.math.roundToInt
 data class AnalysisInput(
     val summary: CycleSummary,
     val occurrences: List<TermOccurrence>,
-    val panics: List<PanicRecord>,
+    val episodes: List<Episode>,
     val medications: List<MedicationPhase>,
     val gad: List<GadRecord>,
     val from: LocalDate,
     val to: LocalDate,
     val categories: Set<Category> = Category.entries.toSet(),
     val terms: Set<String> = emptySet(),
+    val events: List<PlannedEvent> = emptyList(),
 )
 
 data class CycleBar(
@@ -52,12 +53,34 @@ data class DrspResult(
     val significant: Boolean get() = cycles >= 2 && premenstrual >= 0.5 && (postmenstrual == 0.0 || (changePercent ?: 0.0) >= 30.0)
 }
 
-data class PanicPhaseStat(
+data class UnrestPhaseStat(
     val phase: Phase,
+    /** Anzahl Unruhe-Episoden (alle Stufen). */
     val count: Int,
-    val meanIntensity: Double?,
-    /** Verhältnis Anteil Attacken / Anteil Tage. >1 = gehäuft. */
+    val panicCount: Int,
+    val meanLevel: Double?,
+    /** Verhältnis Anteil Episoden / Anteil Tage. >1 = gehäuft. */
     val relativeFrequency: Double?,
+)
+
+/** Unruhe in den Tagen rund um Ereignisse (Tag 0 = Ereignistag). */
+data class AnticipationPoint(val offset: Int, val meanMaxLevel: Double?, val share: Double?, val events: Int)
+
+data class EventTypeStat(
+    val type: String,
+    val events: Int,
+    /** Anteil der Ereignisse mit Unruhe in den 3 Tagen davor bis zum Ereignistag. */
+    val shareWithUnrest: Double,
+    val meanMaxLevel: Double,
+    val panics: Int,
+    val cancelled: Int,
+)
+
+data class EventPhaseStat(
+    val label: String,
+    val events: Int,
+    val meanMaxLevel: Double,
+    val cancelled: Int,
 )
 
 data class PairStat(val a: String, val b: String, val days: Double, val lift: Double)
@@ -73,6 +96,8 @@ data class EventEffect(
 data class PeriodCompare(
     val label: String,
     val trackedDays: Int,
+    val unrestPer30: Double?,
+    val meanUnrestLevel: Double?,
     val panicPer30: Double?,
     val meanSleep: Double?,
     val meanEnergy: Double?,
@@ -84,7 +109,9 @@ data class MonthTrend(
     val month: YearMonth,
     val meanSleep: Double?,
     val meanEnergy: Double?,
+    val unrestCount: Int,
     val panicCount: Int,
+    val meanUnrestLevel: Double?,
     val gad: Double?,
 )
 
@@ -94,8 +121,14 @@ data class AnalysisResult(
     val heatmap: Heatmap,
     val phaseRates: List<PhaseRate>,
     val drsp: List<DrspResult>,
-    val panicByPhase: List<PanicPhaseStat>,
+    val unrestByPhase: List<UnrestPhaseStat>,
+    val unrestTotal: Int,
     val panicTotal: Int,
+    /** Anzahl Episoden je Stufe 1–5. */
+    val levelCounts: List<Int>,
+    val anticipation: List<AnticipationPoint>,
+    val eventTypes: List<EventTypeStat>,
+    val eventPhases: List<EventPhaseStat>,
     val coOccurrence: List<PairStat>,
     val nextDay: List<PairStat>,
     val events: List<EventEffect>,
@@ -107,6 +140,7 @@ data class AnalysisResult(
 object Analytics {
 
     const val PANIC_LABEL = "Panikattacke"
+    const val UNREST_LABEL = "Unruhe-Episode"
     private const val BACKFILL_WEIGHT = 0.5
 
     fun analyze(input: AnalysisInput): AnalysisResult {
@@ -116,7 +150,7 @@ object Analytics {
         val scaleOcc = allOcc.filter { it.term == ScaleTerms.SLEEP_QUALITY || it.term == ScaleTerms.ENERGY }
         val occ = allOcc.filter { it.term != ScaleTerms.SLEEP_QUALITY && it.term != ScaleTerms.ENERGY }
             .filter { it.category in input.categories && (input.terms.isEmpty() || it.term in input.terms) }
-        val panics = input.panics.filter { inRange(it.date) }
+        val panics = input.episodes.filter { inRange(it.date) }
 
         // Tage mit Einträgen und deren Gewicht (nachgetragen = halbes Gewicht)
         val dayWeight = HashMap<LocalDate, Double>()
@@ -137,13 +171,17 @@ object Analytics {
             map[o.date] = maxOf(prev?.first ?: 0.0, w) to maxOf(prev?.second ?: 0.0, score)
         }
         if (input.categories.contains(Category.PANIC_SYMPTOM) || input.terms.isEmpty()) {
-            val map = HashMap<LocalDate, Pair<Double, Double>>()
-            for (p in panics) {
-                val w = if (p.backfilled) BACKFILL_WEIGHT else 1.0
-                val prev = map[p.date]
-                map[p.date] = maxOf(prev?.first ?: 0.0, w) to maxOf(prev?.second ?: 0.0, p.intensity.toDouble())
+            fun series(list: List<Episode>): HashMap<LocalDate, Pair<Double, Double>> {
+                val map = HashMap<LocalDate, Pair<Double, Double>>()
+                for (p in list) {
+                    val w = if (p.backfilled) BACKFILL_WEIGHT else 1.0
+                    val prev = map[p.date]
+                    map[p.date] = maxOf(prev?.first ?: 0.0, w) to maxOf(prev?.second ?: 0.0, p.level.toDouble())
+                }
+                return map
             }
-            if (map.isNotEmpty()) termDays[PANIC_LABEL to Category.MIND] = map
+            series(panics).takeIf { it.isNotEmpty() }?.let { termDays[UNREST_LABEL to Category.MIND] = it }
+            series(panics.filter { it.isPanic }).takeIf { it.isNotEmpty() }?.let { termDays[PANIC_LABEL to Category.MIND] = it }
         }
 
         val dayInfo = dayWeight.keys.associateWith { CycleEngine.dayInfo(s, it) }
@@ -153,9 +191,13 @@ object Analytics {
         val heatmap = heatmap(topTerms.take(15), dayWeight, dayInfo)
         val phaseRates = phaseRates(topTerms.take(20), dayWeight, dayInfo)
         val drsp = drsp(topTerms, dayWeight, dayInfo, s)
-        val panicByPhase = panicByPhase(panics, dayWeight, dayInfo, s)
+        val unrestByPhase = unrestByPhase(panics, dayWeight, dayInfo, s)
+        val events = input.events.filter { inRange(it.date) }
+        val anticipation = anticipation(events, panics, dayWeight)
+        val eventTypes = eventTypes(events, panics)
+        val eventPhases = eventPhases(events, panics, s)
         val (co, next) = pairs(topTerms.take(25), dayWeight)
-        val events = events(termDays, dayWeight)
+        val lifeEffects = events(termDays, dayWeight)
         val compare = compare(input, dayWeight, allOcc, panics)
         val trends = trends(scaleOcc, panics, input.gad.filter { inRange(it.date) })
 
@@ -165,11 +207,16 @@ object Analytics {
             heatmap = heatmap,
             phaseRates = phaseRates,
             drsp = drsp,
-            panicByPhase = panicByPhase,
-            panicTotal = panics.size,
+            unrestByPhase = unrestByPhase,
+            unrestTotal = panics.size,
+            panicTotal = panics.count { it.isPanic },
+            levelCounts = (1..5).map { l -> panics.count { it.level == l } },
+            anticipation = anticipation,
+            eventTypes = eventTypes,
+            eventPhases = eventPhases,
             coOccurrence = co,
             nextDay = next,
-            events = events,
+            events = lifeEffects,
             compare = compare,
             trends = trends,
             insights = emptyList(),
@@ -263,28 +310,90 @@ object Analytics {
             .sortedByDescending { it.premenstrual - it.postmenstrual }
     }
 
-    private fun panicByPhase(
-        panics: List<PanicRecord>,
+    private fun unrestByPhase(
+        episodes: List<Episode>,
         dayWeight: Map<LocalDate, Double>,
         dayInfo: Map<LocalDate, DayInfo?>,
         s: CycleSummary,
-    ): List<PanicPhaseStat> {
+    ): List<UnrestPhaseStat> {
         val trackedPhase = HashMap<Phase, Double>()
         dayWeight.forEach { (d, w) -> dayInfo[d]?.let { trackedPhase.merge(it.phase, w, Double::plus) } }
         val totalTracked = trackedPhase.values.sum()
-        val byPhase = panics.groupBy { CycleEngine.dayInfo(s, it.date)?.phase }
-        val total = panics.count { CycleEngine.dayInfo(s, it.date) != null }
+        val byPhase = episodes.groupBy { CycleEngine.dayInfo(s, it.date)?.phase }
+        val total = episodes.count { CycleEngine.dayInfo(s, it.date) != null }
         return Phase.entries.map { p ->
             val list = byPhase[p].orEmpty()
             val dayShare = if (totalTracked > 0) (trackedPhase[p] ?: 0.0) / totalTracked else 0.0
-            val attackShare = if (total > 0) list.size.toDouble() / total else 0.0
-            PanicPhaseStat(
+            val share = if (total > 0) list.size.toDouble() / total else 0.0
+            UnrestPhaseStat(
                 phase = p,
                 count = list.size,
-                meanIntensity = list.takeIf { it.isNotEmpty() }?.map { it.intensity }?.average(),
-                relativeFrequency = if (dayShare > 0 && total >= 3) attackShare / dayShare else null,
+                panicCount = list.count { it.isPanic },
+                meanLevel = list.takeIf { it.isNotEmpty() }?.map { it.level }?.average(),
+                relativeFrequency = if (dayShare > 0 && total >= 3) share / dayShare else null,
             )
         }
+    }
+
+    /** Höchste Unruhe-Stufe an einem Tag (0 = erfasst, aber keine Unruhe; null = nicht erfasst). */
+    private fun maxLevel(day: LocalDate, episodes: Map<LocalDate, List<Episode>>, dayWeight: Map<LocalDate, Double>): Int? {
+        val list = episodes[day]
+        return when {
+            !list.isNullOrEmpty() -> list.maxOf { it.level }
+            dayWeight.containsKey(day) -> 0
+            else -> null
+        }
+    }
+
+    private fun anticipation(events: List<PlannedEvent>, episodes: List<Episode>, dayWeight: Map<LocalDate, Double>): List<AnticipationPoint> {
+        if (events.isEmpty()) return emptyList()
+        val byDay = episodes.groupBy { it.date }
+        return (-7..1).map { off ->
+            val values = events.mapNotNull { maxLevel(it.date.plusDays(off.toLong()), byDay, dayWeight) }
+            AnticipationPoint(
+                offset = off,
+                meanMaxLevel = values.takeIf { it.isNotEmpty() }?.average(),
+                share = values.takeIf { it.isNotEmpty() }?.let { v -> v.count { it > 0 }.toDouble() / v.size },
+                events = values.size,
+            )
+        }
+    }
+
+    /** Höchste Stufe in den 3 Tagen vor bis zum Ereignistag, inkl. direkt verknüpfter Episoden. */
+    fun anticipatoryLevel(event: PlannedEvent, episodes: List<Episode>): Int =
+        episodes.filter { e ->
+            e.eventId == event.id && event.id != 0L ||
+                (!e.date.isBefore(event.date.minusDays(3)) && !e.date.isAfter(event.date))
+        }.maxOfOrNull { it.level } ?: 0
+
+    private fun eventTypes(events: List<PlannedEvent>, episodes: List<Episode>): List<EventTypeStat> =
+        events.groupBy { it.type }.map { (type, list) ->
+            val levels = list.map { anticipatoryLevel(it, episodes) }
+            EventTypeStat(
+                type = type,
+                events = list.size,
+                shareWithUnrest = levels.count { it > 0 }.toDouble() / list.size,
+                meanMaxLevel = levels.average(),
+                panics = levels.count { it >= 5 },
+                cancelled = list.count { it.outcome == EventOutcome.CANCELLED || it.outcome == EventOutcome.LEFT_EARLY },
+            )
+        }.sortedByDescending { it.meanMaxLevel * it.events }
+
+    private fun eventPhases(events: List<PlannedEvent>, episodes: List<Episode>, s: CycleSummary): List<EventPhaseStat> {
+        if (events.isEmpty()) return emptyList()
+        val groups = events.groupBy { e ->
+            val info = CycleEngine.dayInfo(s, e.date) ?: CycleEngine.projectDay(s, e.date)
+            when {
+                info == null -> null
+                (info.daysBeforeNext ?: 99) in 1..7 -> "In den 7 Tagen vor der Periode"
+                info.phase == Phase.MENSTRUATION -> "Während der Periode"
+                else -> "Übrige Zykluszeit"
+            }
+        }.filterKeys { it != null }
+        return groups.map { (label, list) ->
+            EventPhaseStat(label!!, list.size, list.map { anticipatoryLevel(it, episodes) }.average(),
+                list.count { it.outcome == EventOutcome.CANCELLED || it.outcome == EventOutcome.LEFT_EARLY })
+        }.sortedBy { it.label }
     }
 
     private fun pairs(
@@ -343,7 +452,7 @@ object Analytics {
         input: AnalysisInput,
         dayWeight: Map<LocalDate, Double>,
         occ: List<TermOccurrence>,
-        panics: List<PanicRecord>,
+        panics: List<Episode>,
     ): List<PeriodCompare> {
         val relevant = input.medications.filter { m -> dayWeight.keys.any { m.activeOn(it) } }
         if (relevant.isEmpty()) return emptyList()
@@ -356,7 +465,8 @@ object Analytics {
             val o = occ.filter { it.date in dset }
             val sleep = o.filter { it.term == ScaleTerms.SLEEP_QUALITY }.mapNotNull { it.intensity }
             val energy = o.filter { it.term == ScaleTerms.ENERGY }.mapNotNull { it.intensity }
-            val p = panics.count { it.date in dset }
+            val eps = panics.filter { it.date in dset }
+            val p = eps.count { it.isPanic }
             val cyc = input.summary.cycles.filter { c -> c.isComplete && pred(c.start) }.map { it.length!! }
             val termRates = o.filter { it.term != ScaleTerms.SLEEP_QUALITY && it.term != ScaleTerms.ENERGY }
                 .groupBy { it.term }
@@ -365,6 +475,8 @@ object Analytics {
             PeriodCompare(
                 label = label,
                 trackedDays = days.size,
+                unrestPer30 = if (days.size >= 7) eps.size * 30.0 / days.size else null,
+                meanUnrestLevel = eps.takeIf { it.isNotEmpty() }?.map { it.level }?.average(),
                 panicPer30 = if (days.size >= 7) p * 30.0 / days.size else null,
                 meanSleep = sleep.takeIf { it.isNotEmpty() }?.average(),
                 meanEnergy = energy.takeIf { it.isNotEmpty() }?.average(),
@@ -374,7 +486,7 @@ object Analytics {
         }
     }
 
-    private fun trends(scale: List<TermOccurrence>, panics: List<PanicRecord>, gad: List<GadRecord>): List<MonthTrend> {
+    private fun trends(scale: List<TermOccurrence>, panics: List<Episode>, gad: List<GadRecord>): List<MonthTrend> {
         val months = (scale.map { YearMonth.from(it.date) } + panics.map { YearMonth.from(it.date) } + gad.map { YearMonth.from(it.date) })
             .toSortedSet()
         return months.map { m ->
@@ -383,7 +495,9 @@ object Analytics {
                 month = m,
                 meanSleep = sc.filter { it.term == ScaleTerms.SLEEP_QUALITY }.mapNotNull { it.intensity }.takeIf { it.isNotEmpty() }?.average(),
                 meanEnergy = sc.filter { it.term == ScaleTerms.ENERGY }.mapNotNull { it.intensity }.takeIf { it.isNotEmpty() }?.average(),
-                panicCount = panics.count { YearMonth.from(it.date) == m },
+                unrestCount = panics.count { YearMonth.from(it.date) == m },
+                panicCount = panics.count { YearMonth.from(it.date) == m && it.isPanic },
+                meanUnrestLevel = panics.filter { YearMonth.from(it.date) == m }.map { it.level }.takeIf { it.isNotEmpty() }?.average(),
                 gad = gad.filter { YearMonth.from(it.date) == m }.map { it.score }.takeIf { it.isNotEmpty() }?.average(),
             )
         }
@@ -399,13 +513,13 @@ object Insights {
         }
         r.cycles.median?.let { m ->
             val sd = r.cycles.stdDev
-            out += "Der übliche Zyklus dauert ${m.roundToInt()} Tage" + (sd?.let { " (Schwankung ± ${"%.1f".format(it)} Tage)" } ?: "") + "."
+            out += "Der übliche Zyklus dauert ${m.roundToInt()} Tage" + (sd?.let { " (Schwankung ± ${de1(it)} Tage)" } ?: "") + "."
         }
         val deviations = r.cycles.bars.count { it.deviation != null }
         if (deviations > 0) out += "$deviations ${if (deviations == 1) "Zyklus weicht" else "Zyklen weichen"} deutlich vom Üblichen ab."
         r.cycles.trendPerCycle?.let { t ->
-            if (t >= 0.8) out += "Die Zyklen werden tendenziell länger (etwa +${"%.1f".format(t)} Tage pro Zyklus)."
-            if (t <= -0.8) out += "Die Zyklen werden tendenziell kürzer (etwa ${"%.1f".format(t)} Tage pro Zyklus)."
+            if (t >= 0.8) out += "Die Zyklen werden tendenziell länger (etwa +${de1(t)} Tage pro Zyklus)."
+            if (t <= -0.8) out += "Die Zyklen werden tendenziell kürzer (etwa ${de1(t)} Tage pro Zyklus)."
         }
         if (s.straw == StrawStage.EARLY || s.straw == StrawStage.LATE) out += s.straw.description
 
@@ -417,8 +531,30 @@ object Insights {
                 "„${d.term}“ ist in den 7 Tagen vor der Periode etwa ${change.roundToInt()} % stärker als in der Woche nach der Periode (${d.cycles} Zyklen ausgewertet)."
             }
         }
-        r.panicByPhase.filter { (it.relativeFrequency ?: 0.0) >= 1.5 && it.count >= 2 }.maxByOrNull { it.relativeFrequency!! }?.let {
-            out += "Panikattacken häufen sich in der ${it.phase.label}: ${it.count} von ${r.panicTotal} Attacken, etwa ${"%.1f".format(it.relativeFrequency)}-mal so häufig wie im Durchschnitt."
+        r.unrestByPhase.filter { (it.relativeFrequency ?: 0.0) >= 1.5 && it.count >= 2 }.maxByOrNull { it.relativeFrequency!! }?.let {
+            out += "Unruhe häuft sich in der ${it.phase.label}: ${it.count} von ${r.unrestTotal} Episoden, etwa ${de1(it.relativeFrequency)}-mal so häufig wie im Durchschnitt" +
+                (if (it.panicCount > 0) ", davon ${it.panicCount} Panikattacke${if (it.panicCount == 1) "" else "n"}." else ".")
+        }
+        if (r.unrestTotal >= 5 && r.panicTotal > 0) {
+            out += "${r.panicTotal} von ${r.unrestTotal} Unruhe-Episoden (${(r.panicTotal * 100.0 / r.unrestTotal).roundToInt()} %) haben sich bis zur Panikattacke gesteigert."
+        }
+        val ant = r.anticipation.filter { it.events >= 3 && it.meanMaxLevel != null }
+        if (ant.isNotEmpty()) {
+            val peak = ant.maxBy { it.meanMaxLevel!! }
+            val base = ant.filter { it.offset <= -5 }.mapNotNull { it.meanMaxLevel }.takeIf { it.isNotEmpty() }?.average()
+            if (peak.meanMaxLevel!! >= 1.0 && (base == null || peak.meanMaxLevel >= base + 0.7)) {
+                val day = when (peak.offset) { 0 -> "am Tag des Ereignisses"; 1 -> "am Tag danach"; -1 -> "am Vortag"; else -> "${-peak.offset} Tage vorher" }
+                out += "Vor Ereignissen steigt die Unruhe an und ist $day am stärksten (Ø Stufe ${de1(peak.meanMaxLevel)}" + (base?.let { ", eine Woche vorher Ø ${de1(it)}" } ?: "") + ")."
+            }
+        }
+        r.eventTypes.filter { it.events >= 2 && it.meanMaxLevel >= 2.0 }.take(2).forEach {
+            out += "„${it.type}“ ging in ${(it.shareWithUnrest * 100).roundToInt()} % der Fälle Unruhe voraus (Ø Stufe ${de1(it.meanMaxLevel)}, ${it.events} Ereignisse" +
+                (if (it.cancelled > 0) ", ${it.cancelled}× abgesagt oder früher gegangen" else "") + ")."
+        }
+        val pre = r.eventPhases.firstOrNull { it.label.startsWith("In den 7 Tagen") }
+        val other = r.eventPhases.firstOrNull { it.label.startsWith("Übrige") }
+        if (pre != null && other != null && pre.events >= 2 && other.events >= 2 && pre.meanMaxLevel - other.meanMaxLevel >= 0.7) {
+            out += "Ereignisse in den 7 Tagen vor der Periode gingen mit stärkerer Unruhe einher (Ø ${de1(pre.meanMaxLevel)}) als zu anderen Zeiten (Ø ${de1(other.meanMaxLevel)}). Bei der Planung kann das hilfreich sein."
         }
         r.events.firstOrNull()?.let {
             out += "An Tagen mit bzw. nach „${it.event}“ trat „${it.target}“ in ${(it.rateWith * 100).roundToInt()} % der Fälle auf, sonst in ${(it.rateWithout * 100).roundToInt()} %."
@@ -433,8 +569,10 @@ object Insights {
                     out += "Für einen Vergleich „${c.label}“ gegenüber der Zeit ohne Medikation braucht es noch mehr Einträge."
                 } else {
                     val parts = mutableListOf<String>()
-                    if (base.panicPer30 != null && c.panicPer30 != null) parts += "Panikattacken pro 30 Tage ${"%.1f".format(base.panicPer30)} → ${"%.1f".format(c.panicPer30)}"
-                    if (base.meanSleep != null && c.meanSleep != null) parts += "Schlafqualität ${"%.1f".format(base.meanSleep)} → ${"%.1f".format(c.meanSleep)}"
+                    if (base.unrestPer30 != null && c.unrestPer30 != null) parts += "Unruhe-Episoden pro 30 Tage ${de1(base.unrestPer30)} → ${de1(c.unrestPer30)}"
+                    if (base.meanUnrestLevel != null && c.meanUnrestLevel != null) parts += "Ø Stufe ${de1(base.meanUnrestLevel)} → ${de1(c.meanUnrestLevel)}"
+                    if (base.panicPer30 != null && c.panicPer30 != null) parts += "Panikattacken pro 30 Tage ${de1(base.panicPer30)} → ${de1(c.panicPer30)}"
+                    if (base.meanSleep != null && c.meanSleep != null) parts += "Schlafqualität ${de1(base.meanSleep)} → ${de1(c.meanSleep)}"
                     if (parts.isNotEmpty()) out += "Vergleich ohne Medikation → ${c.label}: ${parts.joinToString(", ")}."
                 }
             }

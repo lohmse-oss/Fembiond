@@ -64,6 +64,10 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         data.medications.filter { CycleEngine.intakeDue(it, data.summary, today) && (it.id to today) !in data.intakes }.forEach { m ->
             Reminders.notify(applicationContext, 1000 + m.id.toInt(), "Einnahme: ${m.name}", "Heute laut Schema fällig (${m.scheduleLabel()}). Zum Abhaken antippen.", Routes.HOME)
         }
+        data.events.filter { it.date == today.plusDays(1) }.forEach { e ->
+            Reminders.notify(applicationContext, 3000 + e.id.toInt(), "Morgen: ${e.displayName}",
+                "Plane Pausen ein und nimm dir mit, was dir sonst hilft. Unruhe kannst du direkt in der App festhalten.", Routes.EVENTS)
+        }
         if (data.gadDue && data.occurrences.size > 3) {
             Reminders.notify(applicationContext, 2000, "Kurzer Angst-Check", "Der GAD-7-Fragebogen ist wieder dran (7 Fragen).", Routes.GAD)
         }

@@ -13,8 +13,8 @@ android {
         applicationId = "de.fembiond.app"
         minSdk = 31
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
     }
 
     signingConfigs {
@@ -58,6 +58,9 @@ kotlin {
     jvmToolchain(21)
 }
 
+// Room-Schemas für den Migrationstest (nur Debug-Build)
+android.sourceSets.getByName("debug").assets.srcDir("$projectDir/schemas")
+
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
 }
@@ -90,6 +93,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    testImplementation(libs.room.testing)
     testImplementation(libs.roborazzi)
     testImplementation(libs.roborazzi.compose)
     testImplementation(platform(libs.compose.bom))

@@ -71,11 +71,12 @@ fun MedicationScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             val active = m.activeOn(today)
             val (taken, due) = adherence(m, data)
             SectionCard(title = m.displayName(), icon = Icons.Rounded.Medication, container = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow) {
-                Text("${m.scheduleLabel()} · ${m.start.short()} – ${m.end?.short() ?: "laufend"}")
+                Text("Schema: ${m.scheduleLabel()}")
+                HintText(if (m.end == null) "seit ${m.start.short()} (laufend)" else "${m.start.short()} – ${m.end.short()}")
                 if (due > 0) HintText("Einnahme: $taken von $due fälligen Tagen abgehakt")
                 m.reviewDate?.let { HintText("Neubefund/Arzttermin: ${it.short()}") }
                 if (m.note.isNotBlank()) HintText(m.note)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChipFlow {
                     OutlinedButton(onClick = { editing = m }) { Text("Bearbeiten") }
                     if (active) {
                         OutlinedButton(onClick = { replacing = m }) { Text("Ändern") }

@@ -95,6 +95,7 @@ data class WidgetState(
     val medPhaseId: Long,
     val medicationDays: Set<Int>,
     val deviation: Boolean,
+    val nextEvent: String?,
 ) {
     companion object {
         private val dm = DateTimeFormatter.ofPattern("d. MMM", Locale.GERMANY)
@@ -106,16 +107,16 @@ data class WidgetState(
             val pred = c?.prediction
             val text = when {
                 c == null -> "Noch keine Periode erfasst"
-                c.inPeriod -> "Periode · Tag ${c.cycleDay}"
+                c.inPeriod -> "Periode läuft"
                 pred!!.overdueDays > 0 -> "Periode überfällig (${pred.overdueDays} T.)"
                 else -> {
                     val a = daysBetween(today, pred.from).coerceAtLeast(0)
                     val b = daysBetween(today, pred.to).coerceAtLeast(0)
                     when {
                         a == 0 && b == 0 -> "Periode heute erwartet"
-                        a == b -> "Periode in $a Tagen"
-                        a == 0 -> "Periode ab heute bis ${pred.to.format(dm)}"
-                        else -> "Periode in $a–$b Tagen"
+                        a == b -> "Periode in $a T."
+                        a == 0 -> "Periode ab heute"
+                        else -> "Periode in $a–$b T."
                     }
                 }
             }
@@ -132,6 +133,10 @@ data class WidgetState(
                 medicationDays = d.medications.filter { it.activeOn(today) && it.schedule == ScheduleType.CYCLIC }
                     .flatMap { (it.cycleDayFrom ?: 0)..(it.cycleDayTo ?: -1) }.toSet(),
                 deviation = (c?.prediction?.overdueDays ?: 0) > 0,
+                nextEvent = d.events.filter { !it.date.isBefore(today) && daysBetween(today, it.date) <= 14 }.minByOrNull { it.date }?.let { e ->
+                    val n = daysBetween(today, e.date)
+                    e.displayName + " " + when (n) { 0 -> "heute"; 1 -> "morgen"; else -> "in $n T." }
+                },
             )
         }
     }
@@ -139,7 +144,7 @@ data class WidgetState(
 
 class CycleWidget : GlanceAppWidget() {
 
-    override val sizeMode = SizeMode.Responsive(setOf(SMALL, WIDE, TALL))
+    override val sizeMode = SizeMode.Responsive(setOf(SMALL, WIDE, ROOMY, TALL))
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val app = context.applicationContext as FembiondApp
@@ -153,6 +158,7 @@ class CycleWidget : GlanceAppWidget() {
     companion object {
         val SMALL = DpSize(180.dp, 48.dp)
         val WIDE = DpSize(250.dp, 48.dp)
+        val ROOMY = DpSize(320.dp, 48.dp)
         val TALL = DpSize(250.dp, 110.dp)
 
         suspend fun refresh(context: Context) = runCatching { CycleWidget().updateAll(context) }
@@ -169,8 +175,8 @@ private fun openIntent(context: Context, route: String?): Intent =
 private fun WidgetContent(context: Context, s: WidgetState?, ring: Bitmap?, bar: Bitmap?) {
     val size = LocalSize.current
     val tall = size.height >= 100.dp
-    val wide = size.width >= 240.dp
-    val title = TextStyle(color = OnSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+    val roomy = size.width >= 300.dp
+    val title = TextStyle(color = OnSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     val sub = TextStyle(color = OnSurfaceVariant, fontSize = 12.sp)
 
     Column(
@@ -181,51 +187,41 @@ private fun WidgetContent(context: Context, s: WidgetState?, ring: Bitmap?, bar:
         Row(GlanceModifier.fillMaxWidth().let { if (tall) it else it.fillMaxHeight() }, verticalAlignment = Alignment.CenterVertically) {
             when {
                 s == null -> Text("Fembiond wird geladen …", style = sub)
-                s.locked -> {
-                    Image(ImageProvider(R.drawable.ic_w_drop), null, GlanceModifier.size(28.dp))
+                s.locked || s.current == null -> {
+                    Image(ImageProvider(R.drawable.ic_w_ring), null, GlanceModifier.size(30.dp))
                     Spacer(GlanceModifier.width(10.dp))
                     Column(GlanceModifier.defaultWeight()) {
-                        Text("Fembiond", style = title)
-                        Text("Gesperrt – zum Öffnen tippen", style = sub)
-                    }
-                }
-                s.current == null -> {
-                    Image(ImageProvider(R.drawable.ic_w_drop), null, GlanceModifier.size(28.dp))
-                    Spacer(GlanceModifier.width(10.dp))
-                    Column(GlanceModifier.defaultWeight()) {
-                        Text("Fembiond", style = title)
-                        Text(s.predictionText, style = sub)
+                        Text("Fembiond", style = title, maxLines = 1)
+                        Text(if (s.locked) "Gesperrt – zum Öffnen tippen" else s.predictionText, style = sub, maxLines = 1)
                     }
                 }
                 else -> {
                     val c = s.current
-                    Box(GlanceModifier.size(48.dp), contentAlignment = Alignment.Center) {
+                    val phase = s.phase ?: c.phase
+                    Box(GlanceModifier.size(46.dp), contentAlignment = Alignment.Center) {
                         if (ring != null) Image(ImageProvider(ring), "Zyklusring", GlanceModifier.fillMaxSize())
-                        Text("${c.cycleDay}", style = TextStyle(color = OnSurface, fontSize = 15.sp, fontWeight = FontWeight.Bold))
+                        Text("${c.cycleDay}", style = TextStyle(color = OnSurface, fontSize = 14.sp, fontWeight = FontWeight.Bold), maxLines = 1)
                     }
                     Spacer(GlanceModifier.width(10.dp))
                     Column(GlanceModifier.defaultWeight()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(GlanceModifier.size(10.dp).background(phaseColor(s.phase ?: c.phase)).cornerRadius(5.dp)) {}
-                            Spacer(GlanceModifier.width(6.dp))
-                            Text(if (wide) "Tag ${c.cycleDay} · ${(s.phase ?: c.phase).label}" else (s.phase ?: c.phase).label, style = title, maxLines = 1)
+                            Box(GlanceModifier.size(9.dp).background(phaseColor(phase)).cornerRadius(5.dp)) {}
+                            Spacer(GlanceModifier.width(5.dp))
+                            Text(phase.label, style = title, maxLines = 1)
                         }
-                        Text(s.predictionText, style = sub.copy(color = if (s.deviation) Primary else OnSurfaceVariant), maxLines = 1)
+                        Text("Tag ${c.cycleDay} · ${s.predictionText}", style = sub.copy(color = if (s.deviation) Primary else OnSurfaceVariant), maxLines = 1)
                     }
                     if (s.medName != null && (s.medDue || s.medTaken)) {
                         Spacer(GlanceModifier.width(6.dp))
                         val icon = if (s.medTaken) R.drawable.ic_w_check else R.drawable.ic_w_capsule
                         val action = if (s.medTaken) actionStartActivity(openIntent(context, Routes.MEDS))
                         else actionRunCallback<TakeIntakeAction>(actionParametersOf(TakeIntakeAction.PHASE to s.medPhaseId))
-                        Column(
-                            GlanceModifier.background(Chip).cornerRadius(14.dp).padding(horizontal = 8.dp, vertical = 4.dp).clickable(action),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Image(ImageProvider(icon), if (s.medTaken) "eingenommen" else "Einnahme abhaken", GlanceModifier.size(20.dp))
-                            if (wide) Text(if (s.medTaken) "erledigt" else "fällig", style = TextStyle(color = OnSurfaceVariant, fontSize = 10.sp))
-                        }
+                        Box(
+                            GlanceModifier.size(36.dp).background(Chip).cornerRadius(18.dp).clickable(action),
+                            contentAlignment = Alignment.Center,
+                        ) { Image(ImageProvider(icon), if (s.medTaken) "${s.medName} eingenommen" else "${s.medName}: Einnahme abhaken", GlanceModifier.size(20.dp)) }
                     }
-                    if (wide) {
+                    if (roomy) {
                         Spacer(GlanceModifier.width(6.dp))
                         Box(
                             GlanceModifier.size(36.dp).background(PrimaryContainer).cornerRadius(18.dp)
@@ -237,13 +233,14 @@ private fun WidgetContent(context: Context, s: WidgetState?, ring: Bitmap?, bar:
             }
         }
         if (tall && s != null && !s.locked && s.current != null) {
-            Spacer(GlanceModifier.height(6.dp))
-            if (bar != null) Image(ImageProvider(bar), "Zyklusverlauf", GlanceModifier.fillMaxWidth().height(14.dp))
-            Spacer(GlanceModifier.height(6.dp))
+            Spacer(GlanceModifier.height(4.dp))
+            if (bar != null) Image(ImageProvider(bar), "Zyklusverlauf", GlanceModifier.fillMaxWidth().height(12.dp))
+            if (s.nextEvent != null) Text("Anstehend: ${s.nextEvent}", style = sub, maxLines = 1, modifier = GlanceModifier.padding(top = 2.dp))
+            Spacer(GlanceModifier.height(4.dp))
             Row(GlanceModifier.fillMaxWidth()) {
                 QuickButton(context, "Befinden", R.drawable.ic_w_add, Routes.entry(), PrimaryContainer, ColorProvider(Color.White, Color.White), GlanceModifier.defaultWeight())
                 Spacer(GlanceModifier.width(8.dp))
-                QuickButton(context, "Panik", R.drawable.ic_w_pulse, Routes.PANIC, Chip, OnSurface, GlanceModifier.defaultWeight())
+                QuickButton(context, "Unruhe", R.drawable.ic_w_pulse, Routes.unrest(), Chip, OnSurface, GlanceModifier.defaultWeight())
             }
         }
     }

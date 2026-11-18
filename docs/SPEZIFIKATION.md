@@ -69,14 +69,31 @@ Grundlagen: DRSP (Daily Record of Severity of Problems), Menopause Rating Scale 
 - **Stufe 2 (später, optional):** lokales Sprachmodell (z. B. Gemma via MediaPipe/LiteRT) als
   austauschbarer Baustein. Gemini Nano ist auf dem Pixel 7 nicht verfügbar.
 
-## 5. Unruhe & Panikattacken
+## 5. Unruhe-Episoden und Ereignisse
 
-Eigener Schnelleintrag, gut erreichbar (Schnelltaste auf dem Startbildschirm):
-- Zeitpunkt (automatisch), Dauer, Stärke 1–5
-- Symptome (DSM-5-angelehnt): Herzrasen, Atemnot, Zittern, Schwindel, Engegefühl in der Brust,
-  Hitze/Kälte, Kribbeln, Angst vor Kontrollverlust, Unwirklichkeitsgefühl, Übelkeit, Schwitzen
-- Auslöser (wachsend): Menschenmenge, Stress, nachts aus dem Schlaf, ohne erkennbaren Grund …
-- Was hat geholfen (wachsend): Atmen, Bewegung, Medikament, Gespräch …
+Im Vordergrund stehen Unruhezustände in verschiedenen Schweregraden. Im schlimmsten Fall münden sie in eine Panikattacke,
+oft im Vorfeld anstehender Ereignisse (Geburtstagsfeier, Essen gehen, Konzert …).
+
+### 5.1 Unruhe-Episode (Schnelleintrag, auch im Widget)
+- **Stufe 1–5:** 1 leicht · 2 spürbar · 3 stark (körperliche Anzeichen) · 4 sehr stark (kurz vor Panik) · 5 Panikattacke
+- Optional Bezug zu einem Ereignis (Auslöser „Anstehendes Ereignis“ wird dann vorgeschlagen)
+- Zeitpunkt, Dauer, körperliche Anzeichen, Auslöser und was geholfen hat (jeweils wachsende Listen), Notiz
+- „Innere Unruhe“ bleibt zusätzlich als Begriff im Tageseintrag für das Grundgefühl.
+
+### 5.2 Ereignisse
+- Planen mit Datum, Art (wachsende Liste: Geburtstagsfeier, Essen gehen, Konzert, Party/Feier, Familienfeier,
+  Treffen mit Freunden, Kino/Theater, Arzttermin, Termin bei der Arbeit, Reise, Einkaufen/Menschenmenge),
+  optionaler Bezeichnung und Notiz.
+- Anzeige der voraussichtlichen Zyklusphase am Ereignistag, mit Hinweis, wenn es in die Tage vor der Periode fällt.
+- Nach dem Ereignis Ausgang erfassen: war dort, früher gegangen, abgesagt.
+- Erinnerung am Vortag.
+
+### 5.3 Auswertung
+- Verteilung der Stufen, Unruhe nach Zyklusphase (Anzahl, mittlere Stufe, relative Häufigkeit, Panik-Anteil)
+- Anteil der Episoden, die bis zur Panik eskalieren
+- Unruhe rund um Ereignisse: mittlere höchste Stufe von 7 Tagen vorher bis 1 Tag danach
+- Nach Ereignisart: Anteil mit Unruhe vorher, mittlere Stufe, Panik, Absagen
+- Nach Zeitpunkt im Zyklus: Ereignisse in den 7 Tagen vor der Periode im Vergleich zur übrigen Zeit
 
 Optional: GAD-7-Fragebogen alle 14 Tage.
 

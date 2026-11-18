@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.IosShare
 import androidx.compose.material.icons.rounded.Medication
 import androidx.compose.material.icons.rounded.Quiz
@@ -62,9 +63,11 @@ import de.fembiond.app.ui.short
 fun MoreScreen(data: AppData, nav: NavController) {
     Screen(title = "Mehr", nav = null) {
         SectionCard {
+            MoreItem(Icons.Rounded.Event, "Ereignisse", "Feiern, Essen gehen, Konzerte planen und auswerten") { nav.navigate(Routes.EVENTS) }
+            HorizontalDivider()
             MoreItem(Icons.Rounded.Medication, "Medikation", "Behandlungsphasen, Einnahme, Neubefund") { nav.navigate(Routes.MEDS) }
             HorizontalDivider()
-            MoreItem(Icons.Rounded.History, "Historie & Perioden", "Vergangene Perioden und Panikattacken nachtragen") { nav.navigate(Routes.HISTORY) }
+            MoreItem(Icons.Rounded.History, "Historie & Perioden", "Vergangene Perioden und Unruhe nachtragen") { nav.navigate(Routes.HISTORY) }
             HorizontalDivider()
             MoreItem(Icons.Rounded.IosShare, "Export & Sicherung", "KI-Export, Arztbericht, Sicherung") { nav.navigate(Routes.EXPORT) }
             HorizontalDivider()

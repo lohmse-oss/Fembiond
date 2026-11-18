@@ -20,7 +20,8 @@ import androidx.compose.material.icons.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.GridOn
 import androidx.compose.material.icons.rounded.Hub
 import androidx.compose.material.icons.rounded.Medication
-import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.Warning
@@ -58,6 +59,8 @@ import de.fembiond.app.ui.fmt1
 import de.fembiond.app.ui.icon
 import de.fembiond.app.ui.short
 import de.fembiond.app.ui.theme.LocalPhaseColors
+import de.fembiond.app.ui.unrestColor
+import de.fembiond.app.domain.UnrestLevel
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -71,7 +74,7 @@ sealed class RangeOption(val label: String) {
     fun range(data: AppData): Pair<LocalDate, LocalDate> {
         val today = data.today
         val earliest = listOfNotNull(
-            data.periods.minOfOrNull { it.start }, data.occurrences.minOfOrNull { it.date }, data.panics.minOfOrNull { it.date },
+            data.periods.minOfOrNull { it.start }, data.occurrences.minOfOrNull { it.date }, data.episodes.minOfOrNull { it.date },
         ).minOrNull() ?: today
         return when (this) {
             LastCycle -> {
@@ -118,12 +121,31 @@ fun RangeAndFilter(
 }
 
 @Composable
+fun AnticipationChart(points: List<de.fembiond.app.domain.AnticipationPoint>) {
+    val maxH = 96.dp
+    Row(Modifier.fillMaxWidth().height(maxH + 36.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        points.forEach { p ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                val v = (p.meanMaxLevel ?: 0.0)
+                Text(if (p.meanMaxLevel == null) "–" else v.fmt1(), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                Box(
+                    Modifier.fillMaxWidth().height(maxH * (v / 5.0).toFloat().coerceIn(0.02f, 1f))
+                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                        .background(if (p.offset == 0) MaterialTheme.colorScheme.primary else unrestColor(v.roundToInt().coerceIn(1, 5)).copy(alpha = 0.75f))
+                )
+                Text(if (p.offset == 0) "Tag" else "%+d".format(p.offset), style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
 fun AnalysisScreen(data: AppData, nav: NavController) {
     var range by remember { mutableStateOf<RangeOption>(RangeOption.Months(6)) }
     var categories by remember { mutableStateOf(Category.entries.toSet()) }
     val (from, to) = range.range(data)
     val result = remember(data, from, to, categories) {
-        Analytics.analyze(AnalysisInput(data.summary, data.occurrences, data.panics, data.medications, data.gad, from, to, categories))
+        Analytics.analyze(AnalysisInput(data.summary, data.occurrences, data.episodes, data.medications, data.gad, from, to, categories, events = data.events))
     }
     val pc = LocalPhaseColors.current
 
@@ -139,14 +161,15 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
         SectionCard(title = "Zykluslänge & Abweichungen", icon = Icons.Rounded.Timeline) {
             val cs = result.cycles
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                BigNumber(cs.median?.roundToInt()?.toString() ?: "–", "Median\nTage")
+                BigNumber(cs.median?.roundToInt()?.toString() ?: "–", "Tage (Median)")
                 BigNumber(cs.stdDev?.let { "±" + it.fmt1() } ?: "–", "Schwankung")
                 BigNumber(if (cs.min != null) "${cs.min}–${cs.max}" else "–", "Spanne")
             }
             val maxLen = (cs.bars.mapNotNull { it.length }.maxOrNull() ?: 35).coerceAtLeast(35)
             cs.bars.takeLast(12).reversed().forEach { b ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(b.start.dm(), style = MaterialTheme.typography.labelMedium, modifier = Modifier.width(56.dp))
+                    Text(b.start.format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.")), style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1, softWrap = false, modifier = Modifier.width(52.dp))
                     Box(Modifier.weight(1f).height(16.dp)) {
                         val len = b.length ?: (data.today.toEpochDay() - b.start.toEpochDay() + 1).toInt()
                         Row(Modifier.fillMaxWidth(len.toFloat() / maxLen).height(16.dp).clip(RoundedCornerShape(8.dp))) {
@@ -156,8 +179,8 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                         }
                     }
                     Spacer(Modifier.width(8.dp))
-                    Text(b.length?.toString() ?: "läuft", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(40.dp))
-                    Box(Modifier.width(40.dp)) {
+                    Text(b.length?.toString() ?: "…", style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false, modifier = Modifier.width(32.dp))
+                    Box(Modifier.width(36.dp)) {
                         Row {
                             if (b.deviation != null) Icon(Icons.Rounded.Warning, b.deviation.label, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
                             if (b.medicated) Icon(Icons.Rounded.Medication, "unter Medikation", tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(16.dp))
@@ -166,8 +189,8 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                 }
             }
             if (cs.bars.isEmpty()) HintText("Noch keine Zyklen im Zeitraum.")
-            HintText("Warnsymbol = deutliche Abweichung · Kapsel = unter Medikation. Zyklen mit Medikation fließen nicht in die Grundlinie ein.")
-            HintText("Einordnung Perimenopause (STRAW+10): ${data.summary.straw.label}. ${data.summary.straw.description}")
+            HintText("Zahl = Länge in Tagen (… = laufender Zyklus) · Warnsymbol = deutliche Abweichung · Kapsel = unter Medikation (nicht Teil der Grundlinie).")
+            HintText("Perimenopause (STRAW+10): ${data.summary.straw.label}")
         }
 
         if (result.heatmap.rows.isNotEmpty()) SectionCard(title = "Wann tritt was auf?", icon = Icons.Rounded.GridOn) {
@@ -192,18 +215,66 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             HintText("Ausgewertete Zyklen: ${drsp.first().cycles}")
         }
 
-        SectionCard(title = "Panikattacken nach Phase", icon = Icons.Rounded.MonitorHeart) {
-            if (result.panicTotal == 0) HintText("Im Zeitraum keine Panikattacken erfasst.") else {
-                val max = result.panicByPhase.maxOf { it.count }.coerceAtLeast(1)
-                result.panicByPhase.forEach { p ->
+        SectionCard(title = "Unruhe nach Zyklusphase", icon = Icons.Rounded.Waves) {
+            if (result.unrestTotal == 0) HintText("Im Zeitraum keine Unruhe-Episoden erfasst.") else {
+                Text("Stufen-Verteilung (${result.unrestTotal} Episoden)", style = MaterialTheme.typography.labelLarge)
+                Row(Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(11.dp))) {
+                    result.levelCounts.forEachIndexed { i, n ->
+                        if (n > 0) Box(Modifier.weight(n.toFloat()).height(22.dp).background(unrestColor(i + 1)), contentAlignment = Alignment.Center) {
+                            Text("$n", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.surface, maxLines = 1)
+                        }
+                    }
+                }
+                ChipFlow {
+                    UnrestLevel.entries.forEach { u ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp).clip(RoundedCornerShape(5.dp)).background(unrestColor(u.level)))
+                            Spacer(Modifier.width(4.dp))
+                            Text("${u.level} ${u.label}", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+                HorizontalDivider()
+                val max = result.unrestByPhase.maxOf { it.count }.coerceAtLeast(1)
+                result.unrestByPhase.forEach { p ->
                     RatioBar(
                         p.phase.label, p.count.toDouble() / max,
-                        "${p.count}" + (p.meanIntensity?.let { " · Ø ${it.fmt1()}" } ?: "") + (p.relativeFrequency?.let { " · ${it.fmt1()}×" } ?: ""),
+                        listOfNotNull("${p.count}", p.meanLevel?.let { "Ø ${it.fmt1()}" }, p.relativeFrequency?.let { "${it.fmt1()}×" }).joinToString(" · "),
                         pc.of(p.phase), p.phase.icon(),
                     )
+                    if (p.panicCount > 0) HintText("davon ${p.panicCount}× Panikattacke")
                 }
-                HintText("Anzahl · mittlere Stärke · relative Häufigkeit (1× = Durchschnitt, berücksichtigt die Länge der Phasen).")
-                PhaseLegend()
+                HintText("Anzahl · mittlere Stufe · relative Häufigkeit (1× = Durchschnitt, berücksichtigt die Länge der Phasen).")
+            }
+        }
+
+        if (result.anticipation.any { it.events > 0 }) SectionCard(title = "Unruhe rund um Ereignisse", icon = Icons.Rounded.Event) {
+            HintText("Mittlere höchste Unruhe-Stufe an den Tagen vor und nach Ereignissen (0 = Ereignistag).")
+            AnticipationChart(result.anticipation)
+            if (result.eventTypes.isNotEmpty()) {
+                HorizontalDivider()
+                Text("Nach Ereignisart", style = MaterialTheme.typography.titleSmall)
+                result.eventTypes.take(8).forEach { t ->
+                    RatioBar(
+                        t.type, t.meanMaxLevel / 5,
+                        "Ø ${t.meanMaxLevel.fmt1()} · ${t.events}×",
+                        unrestColor(t.meanMaxLevel.roundToInt().coerceIn(1, 5)),
+                    )
+                    val extra = listOfNotNull(
+                        "Unruhe vorher in ${(t.shareWithUnrest * 100).roundToInt()} %",
+                        t.panics.takeIf { it > 0 }?.let { "$it× Panik" },
+                        t.cancelled.takeIf { it > 0 }?.let { "$it× abgesagt oder früher gegangen" },
+                    )
+                    HintText(extra.joinToString(" · "))
+                }
+            }
+            if (result.eventPhases.size >= 2) {
+                HorizontalDivider()
+                Text("Zeitpunkt im Zyklus", style = MaterialTheme.typography.titleSmall)
+                result.eventPhases.forEach { p ->
+                    RatioBar(p.label, p.meanMaxLevel / 5, "Ø ${p.meanMaxLevel.fmt1()} · ${p.events}×", MaterialTheme.colorScheme.tertiary)
+                }
+                HintText("Höchste Unruhe-Stufe in den 3 Tagen vor bis zum Ereignistag, gruppiert danach, wann im Zyklus das Ereignis lag.")
             }
         }
 
@@ -234,6 +305,8 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                     Text(c.label, style = MaterialTheme.typography.titleSmall)
                     HintText(listOfNotNull(
                         "${c.trackedDays} Tage",
+                        c.unrestPer30?.let { "Unruhe ${it.fmt1()}/30 Tage" },
+                        c.meanUnrestLevel?.let { "Ø Stufe ${it.fmt1()}" },
                         c.panicPer30?.let { "Panik ${it.fmt1()}/30 Tage" },
                         c.meanSleep?.let { "Schlaf Ø ${it.fmt1()}" },
                         c.meanEnergy?.let { "Energie Ø ${it.fmt1()}" },
@@ -255,7 +328,13 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                 Text("Energie (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanEnergy }, labels, 1.0, 5.0, MaterialTheme.colorScheme.tertiary)
             }
-            Text("Panikattacken", style = MaterialTheme.typography.labelLarge)
+            Text("Unruhe-Episoden pro Monat", style = MaterialTheme.typography.labelLarge)
+            LineChart(result.trends.map { it.unrestCount.toDouble() }, labels, 0.0, (result.trends.maxOf { it.unrestCount }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.tertiary)
+            if (result.trends.any { it.meanUnrestLevel != null }) {
+                Text("Mittlere Unruhe-Stufe (1–5)", style = MaterialTheme.typography.labelLarge)
+                LineChart(result.trends.map { it.meanUnrestLevel }, labels, 1.0, 5.0, unrestColor(3))
+            }
+            Text("Panikattacken pro Monat", style = MaterialTheme.typography.labelLarge)
             LineChart(result.trends.map { it.panicCount.toDouble() }, labels, 0.0, (result.trends.maxOf { it.panicCount }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.error)
             if (result.trends.any { it.gad != null }) {
                 Text("GAD-7 (0–21)", style = MaterialTheme.typography.labelLarge)

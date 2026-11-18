@@ -246,6 +246,29 @@ object CycleEngine {
         )
     }
 
+    /**
+     * Schätzt Zyklustag und Phase für ein zukünftiges Datum anhand der Prognose
+     * (z. B. für geplante Ereignisse). Liefert null ohne aktuellen Zyklus.
+     */
+    fun projectDay(summary: CycleSummary, date: LocalDate): DayInfo? {
+        val c = summary.current ?: return null
+        val cycle = summary.cycles.last()
+        val p = c.prediction
+        val nextStart = p.from.plusDays((daysBetween(p.from, p.to) / 2).toLong())
+        if (date.isBefore(nextStart)) {
+            val day = daysBetween(c.cycleStart, date) + 1
+            if (day < 1) return null
+            val length = maxOf(daysBetween(c.cycleStart, nextStart), day)
+            return DayInfo(cycle.index, day, phaseFor(day, length, cycle.periodLength), daysBetween(date, nextStart), cycle.medicated, true)
+        }
+        var start = nextStart
+        var index = cycle.index + 1
+        val len = summary.baselineLength.coerceAtLeast(15)
+        while (!date.isBefore(start.plusDays(len.toLong()))) { start = start.plusDays(len.toLong()); index++ }
+        val day = daysBetween(start, date) + 1
+        return DayInfo(index, day, phaseFor(day, len, summary.baselinePeriodLength), len - day + 1, false, true)
+    }
+
     /** Ist an diesem Datum laut Schema eine Einnahme vorgesehen? */
     fun intakeDue(phase: MedicationPhase, summary: CycleSummary, date: LocalDate): Boolean {
         if (!phase.activeOn(date)) return false
