@@ -1,8 +1,11 @@
 name: Release
 
+# Start per Tag-Push (v*) oder manuell unter "Actions" (workflow_dispatch).
+# Die Version kommt aus versionName in app/build.gradle.kts.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -23,6 +26,12 @@ jobs:
       - name: Android-Plattform 37 installieren
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-37.0" > /dev/null
 
+      - name: Version bestimmen
+        run: |
+          V=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "TAG=v$V" >> "$GITHUB_ENV"
+          test -f "docs/releases/v$V.md"
+
       - name: Tests
         run: ./gradlew :app:testDebugUnitTest --no-daemon
 
@@ -30,11 +39,13 @@ jobs:
         run: ./gradlew :app:assembleRelease --no-daemon
 
       - name: APK benennen
-        run: cp app/build/outputs/apk/release/app-release.apk "Fembiond-${GITHUB_REF_NAME}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "Fembiond-${TAG}.apk"
 
       - name: GitHub-Release erstellen
         uses: softprops/action-gh-release@v2
         with:
-          name: Fembiond ${{ github.ref_name }}
-          body_path: docs/releases/${{ github.ref_name }}.md
-          files: Fembiond-${{ github.ref_name }}.apk
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          name: Fembiond ${{ env.TAG }}
+          body_path: docs/releases/${{ env.TAG }}.md
+          files: Fembiond-${{ env.TAG }}.apk
