@@ -1,0 +1,183 @@
+package de.fembiond.app.export
+
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
+import de.fembiond.app.domain.AnalysisInput
+import de.fembiond.app.domain.AnalysisResult
+import de.fembiond.app.domain.Phase
+import java.io.OutputStream
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
+
+/** Arztbericht als PDF (A4), komplett lokal erzeugt. */
+class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult, private val age: Int?) {
+
+    private val doc = PdfDocument()
+    private var page: PdfDocument.Page? = null
+    private var y = 0f
+    private var pageNo = 0
+    private val w = 595f
+    private val h = 842f
+    private val margin = 44f
+    private val fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+
+    private val berry = Color.rgb(160, 41, 91)
+    private val plum = Color.rgb(123, 63, 115)
+    private val apricot = Color.rgb(217, 120, 58)
+    private val lavender = Color.rgb(126, 107, 192)
+    private val grey = Color.rgb(81, 67, 71)
+
+    private val title = Paint().apply { textSize = 20f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); color = berry; isAntiAlias = true }
+    private val h2 = Paint().apply { textSize = 13f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); color = Color.BLACK; isAntiAlias = true }
+    private val body = Paint().apply { textSize = 9.5f; color = Color.BLACK; isAntiAlias = true }
+    private val small = Paint().apply { textSize = 8f; color = grey; isAntiAlias = true }
+    private val fill = Paint().apply { style = Paint.Style.FILL; isAntiAlias = true }
+
+    private fun phaseColor(p: Phase) = when (p) {
+        Phase.MENSTRUATION -> Color.rgb(194, 24, 91)
+        Phase.FOLLICULAR -> apricot
+        Phase.OVULATION -> lavender
+        Phase.LUTEAL -> plum
+    }
+
+    private fun newPage() {
+        page?.let { finishPage(it) }
+        pageNo++
+        page = doc.startPage(PdfDocument.PageInfo.Builder(w.toInt(), h.toInt(), pageNo).create())
+        y = margin
+    }
+
+    private fun finishPage(p: PdfDocument.Page) {
+        p.canvas.drawText("Fembiond · Selbst erfasste Daten, keine Diagnose · Seite $pageNo", margin, h - 24f, small)
+        doc.finishPage(p)
+    }
+
+    private fun ensure(space: Float) { if (y + space > h - margin - 20) newPage() }
+    private val c get() = page!!.canvas
+
+    private fun heading(t: String) { ensure(40f); y += 10f; c.drawText(t, margin, y + 12f, h2); y += 22f }
+
+    private fun text(t: String, paint: Paint = body, indent: Float = 0f) {
+        val maxW = w - 2 * margin - indent
+        val words = t.split(" ")
+        var line = ""
+        for (word in words) {
+            val cand = if (line.isEmpty()) word else "$line $word"
+            if (paint.measureText(cand) > maxW) { ensure(14f); c.drawText(line, margin + indent, y + 10f, paint); y += 13f; line = word } else line = cand
+        }
+        if (line.isNotEmpty()) { ensure(14f); c.drawText(line, margin + indent, y + 10f, paint); y += 13f }
+    }
+
+    fun write(out: OutputStream) {
+        newPage()
+        c.drawText("Zyklus- & Befindlichkeitsbericht", margin, y + 18f, title); y += 30f
+        text("Zeitraum ${input.from.format(fmt)} – ${input.to.format(fmt)}" + (age?.let { " · Alter $it Jahre" } ?: "") + " · erstellt am ${LocalDate.now().format(fmt)}", small)
+        text("${r.trackedDays} Tage mit Einträgen · ${r.panicTotal} Panikattacken im Zeitraum", small)
+
+        val s = input.summary
+        heading("Zyklus")
+        text("Üblicher Zyklus ${s.baselineLength} Tage (Schwankung ± ${"%.1f".format(s.baselineVariability)}), Periode ca. ${s.baselinePeriodLength} Tage, ${s.naturalCompleteCount} vollständige Zyklen ohne Medikation.")
+        text("Einordnung nach STRAW+10: ${s.straw.label}. ${s.straw.description}")
+        s.current?.let { text("Aktuell Zyklustag ${it.cycleDay} (${it.phase.label}). Nächste Periode erwartet ${it.prediction.from.format(fmt)} – ${it.prediction.to.format(fmt)}" + if (it.prediction.withdrawalBleed) " (Abbruchblutung nach Schema)." else ".") }
+        val bars = r.cycles.bars.takeLast(14)
+        if (bars.isNotEmpty()) {
+            y += 4f
+            val maxLen = (bars.mapNotNull { it.length }.maxOrNull() ?: 35).coerceAtLeast(35)
+            val barW = w - 2 * margin - 150f
+            bars.forEach { b ->
+                ensure(14f)
+                c.drawText(b.start.format(fmt), margin, y + 9f, small)
+                val len = b.length ?: 0
+                val x0 = margin + 60f
+                fill.color = Color.rgb(194, 24, 91)
+                c.drawRect(x0, y + 2f, x0 + barW * b.periodLength / maxLen, y + 10f, fill)
+                fill.color = Color.argb(160, 123, 63, 115)
+                if (len > b.periodLength) c.drawRect(x0 + barW * b.periodLength / maxLen, y + 2f, x0 + barW * len / maxLen, y + 10f, fill)
+                val tag = listOfNotNull(b.length?.let { "$it T." } ?: "läuft", "Medikation".takeIf { b.medicated }, "Abweichung".takeIf { b.deviation != null }, "ca.".takeIf { b.approximate })
+                c.drawText(tag.joinToString(" · "), x0 + barW + 6f, y + 9f, small)
+                y += 13f
+            }
+        }
+
+        if (input.medications.isNotEmpty()) {
+            heading("Medikation")
+            input.medications.forEach { m ->
+                text("• ${m.displayName()} – ${m.scheduleLabel()}, ${m.start.format(fmt)} bis ${m.end?.format(fmt) ?: "laufend"}" + (m.reviewDate?.let { ", Neubefund ${it.format(fmt)}" } ?: ""))
+            }
+            if (r.compare.size >= 2) {
+                y += 4f
+                r.compare.forEach { cmp ->
+                    text("${cmp.label}: " + listOfNotNull(
+                        "${cmp.trackedDays} Tage",
+                        cmp.panicPer30?.let { "Panik ${"%.1f".format(it)}/30 Tage" },
+                        cmp.meanSleep?.let { "Schlaf Ø ${"%.1f".format(it)}/5" },
+                        cmp.meanEnergy?.let { "Energie Ø ${"%.1f".format(it)}/5" },
+                        cmp.medianCycle?.let { "Zyklus ${it.roundToInt()} T." },
+                    ).joinToString(", "), indent = 8f)
+                }
+            }
+        }
+
+        heading("Wichtigste Beobachtungen")
+        if (r.insights.isEmpty()) text("Noch zu wenige Daten für automatische Aussagen.")
+        r.insights.forEach { text("• $it") }
+
+        heading("Panikattacken nach Zyklusphase")
+        if (r.panicTotal == 0) text("Keine Panikattacken im Zeitraum.") else {
+            val max = r.panicByPhase.maxOf { it.count }.coerceAtLeast(1)
+            r.panicByPhase.forEach { p ->
+                ensure(16f)
+                c.drawText(p.phase.label, margin, y + 10f, body)
+                fill.color = phaseColor(p.phase)
+                c.drawRect(margin + 100f, y + 2f, margin + 100f + 220f * p.count / max, y + 11f, fill)
+                c.drawText("${p.count}" + (p.meanIntensity?.let { " · Ø Stärke ${"%.1f".format(it)}" } ?: "") + (p.relativeFrequency?.let { " · ${"%.1f".format(it)}× häufiger als Ø" } ?: ""), margin + 330f, y + 10f, small)
+                y += 15f
+            }
+            val symptoms = input.panics.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }.flatMap { it.symptoms }
+                .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(6)
+            if (symptoms.isNotEmpty()) text("Häufigste Symptome: " + symptoms.joinToString { "${it.key} (${it.value})" }, small)
+        }
+
+        val drsp = r.drsp.take(10)
+        if (drsp.isNotEmpty()) {
+            heading("Vor der Periode vs. danach (DRSP-Methode)")
+            text("Mittlere Stärke 0–5: 7 Tage vor der Periode gegenüber Zyklustag 4–10. * = mind. 30 % stärker bei 2+ Zyklen.", small)
+            drsp.forEach { d ->
+                text("${if (d.significant) "* " else "  "}${d.term}: ${"%.1f".format(d.premenstrual)} vs. ${"%.1f".format(d.postmenstrual)}" +
+                    (d.changePercent?.let { " (${if (it >= 0) "+" else ""}${it.roundToInt()} %)" } ?: " (nur prämenstruell)"))
+            }
+        }
+
+        val hm = r.heatmap
+        if (hm.rows.isNotEmpty()) {
+            heading("Häufigkeit nach Zyklustag")
+            val rows = hm.rows.take(12)
+            val labelW = 120f
+            val cellW = (w - 2 * margin - labelW) / hm.maxDay
+            ensure(14f + rows.size * 12f)
+            for (d in 1..hm.maxDay) if (d == 1 || d % 7 == 0) c.drawText("$d", margin + labelW + (d - 1) * cellW, y + 8f, small)
+            y += 11f
+            rows.forEach { row ->
+                c.drawText(row.term.take(24), margin, y + 8f, small)
+                row.cells.forEachIndexed { i, v ->
+                    val a = (v.coerceIn(0.0, 1.0) * 230 + 15).toInt()
+                    fill.color = if (hm.trackedPerDay[i] == 0.0) Color.rgb(240, 240, 240) else Color.argb(a, 156, 30, 85)
+                    c.drawRect(margin + labelW + i * cellW + 0.5f, y, margin + labelW + (i + 1) * cellW - 0.5f, y + 10f, fill)
+                }
+                y += 12f
+            }
+            text("Dunkler = an mehr erfassten Tagen aufgetreten.", small)
+        }
+
+        heading("Hinweis")
+        text("Selbst erfasste Daten aus der App Fembiond. Die Auswertung zeigt statistische Muster und stellt keine Diagnose dar. Nachgetragene Daten sind geringer gewichtet.", small)
+
+        page?.let { finishPage(it) }
+        page = null
+        doc.writeTo(out)
+        doc.close()
+    }
+}

@@ -1,0 +1,150 @@
+package de.fembiond.app.data
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
+import androidx.room.Upsert
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface FembiondDao {
+    // Perioden
+    @Query("SELECT * FROM periods ORDER BY start")
+    fun periods(): Flow<List<PeriodEntity>>
+
+    @Query("SELECT * FROM periods ORDER BY start")
+    suspend fun periodsOnce(): List<PeriodEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertPeriod(p: PeriodEntity): Long
+
+    @Update
+    suspend fun updatePeriod(p: PeriodEntity)
+
+    @Query("DELETE FROM periods WHERE id = :id")
+    suspend fun deletePeriod(id: Long)
+
+    // Begriffe
+    @Query("SELECT * FROM terms ORDER BY label")
+    fun terms(): Flow<List<TermEntity>>
+
+    @Query("SELECT * FROM terms")
+    suspend fun termsOnce(): List<TermEntity>
+
+    @Query("SELECT * FROM terms WHERE label = :label AND category = :category LIMIT 1")
+    suspend fun term(label: String, category: String): TermEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTerm(t: TermEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTerms(t: List<TermEntity>)
+
+    @Update
+    suspend fun updateTerm(t: TermEntity)
+
+    @Query("UPDATE terms SET useCount = useCount + 1, lastUsed = :now WHERE id = :id")
+    suspend fun touchTerm(id: Long, now: Long)
+
+    @Query("SELECT * FROM synonyms")
+    fun synonyms(): Flow<List<SynonymEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertSynonym(s: SynonymEntity)
+
+    // Einträge
+    @Insert
+    suspend fun insertEntry(e: EntryEntity): Long
+
+    @Insert
+    suspend fun insertEntryTerms(t: List<EntryTermEntity>)
+
+    @Query("DELETE FROM entries WHERE id = :id")
+    suspend fun deleteEntry(id: Long)
+
+    @Query(
+        """SELECT e.id AS entryId, e.day, e.minute, t.label, t.category, et.intensity, et.valence, e.backfilled, e.note
+           FROM entries e JOIN entry_terms et ON et.entryId = e.id JOIN terms t ON t.id = et.termId
+           ORDER BY e.day, e.minute"""
+    )
+    fun occurrences(): Flow<List<OccurrenceRow>>
+
+    @Query("SELECT * FROM entries ORDER BY day DESC, minute DESC")
+    fun entries(): Flow<List<EntryEntity>>
+
+    // Panik
+    @Insert
+    suspend fun insertPanic(p: PanicEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPanicTerms(t: List<PanicTermEntity>)
+
+    @Query("DELETE FROM panics WHERE id = :id")
+    suspend fun deletePanic(id: Long)
+
+    @Query("SELECT * FROM panics ORDER BY day, minute")
+    fun panics(): Flow<List<PanicEntity>>
+
+    @Query("SELECT pt.panicId, t.label, t.category FROM panic_terms pt JOIN terms t ON t.id = pt.termId")
+    fun panicTerms(): Flow<List<PanicTermRow>>
+
+    // Medikation
+    @Query("SELECT * FROM med_phases ORDER BY start")
+    fun medPhases(): Flow<List<MedPhaseEntity>>
+
+    @Upsert
+    suspend fun upsertMedPhase(m: MedPhaseEntity): Long
+
+    @Query("DELETE FROM med_phases WHERE id = :id")
+    suspend fun deleteMedPhase(id: Long)
+
+    @Query("SELECT * FROM intakes")
+    fun intakes(): Flow<List<IntakeEntity>>
+
+    @Upsert
+    suspend fun upsertIntake(i: IntakeEntity)
+
+    // GAD-7
+    @Query("SELECT * FROM gad ORDER BY day")
+    fun gad(): Flow<List<GadEntity>>
+
+    @Insert
+    suspend fun insertGad(g: GadEntity)
+
+    // Backup
+    @Query("SELECT * FROM entries") suspend fun allEntries(): List<EntryEntity>
+    @Query("SELECT * FROM entry_terms") suspend fun allEntryTerms(): List<EntryTermEntity>
+    @Query("SELECT * FROM panics") suspend fun allPanics(): List<PanicEntity>
+    @Query("SELECT * FROM panic_terms") suspend fun allPanicTerms(): List<PanicTermEntity>
+    @Query("SELECT * FROM med_phases") suspend fun allMedPhases(): List<MedPhaseEntity>
+    @Query("SELECT * FROM intakes") suspend fun allIntakes(): List<IntakeEntity>
+    @Query("SELECT * FROM gad") suspend fun allGad(): List<GadEntity>
+    @Query("SELECT * FROM synonyms") suspend fun allSynonyms(): List<SynonymEntity>
+
+    @Query("DELETE FROM periods") suspend fun clearPeriods()
+    @Query("DELETE FROM terms") suspend fun clearTerms()
+    @Query("DELETE FROM synonyms") suspend fun clearSynonyms()
+    @Query("DELETE FROM entries") suspend fun clearEntries()
+    @Query("DELETE FROM panics") suspend fun clearPanics()
+    @Query("DELETE FROM med_phases") suspend fun clearMeds()
+    @Query("DELETE FROM gad") suspend fun clearGad()
+
+    @Insert suspend fun restorePeriods(l: List<PeriodEntity>)
+    @Insert suspend fun restoreTerms(l: List<TermEntity>)
+    @Insert suspend fun restoreSynonyms(l: List<SynonymEntity>)
+    @Insert suspend fun restoreEntries(l: List<EntryEntity>)
+    @Insert suspend fun restoreEntryTerms(l: List<EntryTermEntity>)
+    @Insert suspend fun restorePanics(l: List<PanicEntity>)
+    @Insert suspend fun restorePanicTerms(l: List<PanicTermEntity>)
+    @Insert suspend fun restoreMeds(l: List<MedPhaseEntity>)
+    @Insert suspend fun restoreIntakes(l: List<IntakeEntity>)
+    @Insert suspend fun restoreGad(l: List<GadEntity>)
+
+    @Transaction
+    suspend fun clearAll() {
+        clearEntries(); clearPanics(); clearMeds(); clearGad(); clearSynonyms(); clearTerms(); clearPeriods()
+    }
+}
