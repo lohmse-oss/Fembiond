@@ -99,7 +99,7 @@ class CycleEngineTest {
         val today = p.last().start.plusDays(40)
         val s = CycleEngine.analyze(p, emptyList(), today)
         assertTrue(s.current!!.prediction.overdueDays > 0)
-        assertEquals(today, s.current!!.prediction.from)
+        assertEquals(today, s.current?.prediction?.from)
     }
 
     @Test

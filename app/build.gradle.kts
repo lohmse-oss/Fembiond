@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.sqlcipher)
     implementation(libs.datastore.preferences)
     implementation(libs.biometric)
+    implementation(libs.work.runtime)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
