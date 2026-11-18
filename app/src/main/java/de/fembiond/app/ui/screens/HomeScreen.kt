@@ -1,6 +1,27 @@
 package de.fembiond.app.ui.screens
 
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import de.fembiond.app.domain.StressForecast
+import de.fembiond.app.domain.WeeklyReviewBuilder
+import de.fembiond.app.ui.WeekStrip
+import de.fembiond.app.ui.phaseHeaderBrush
+import de.fembiond.app.ui.stripDays
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -73,7 +94,42 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     val override = data.settings.phaseOverride?.takeIf { data.settings.phaseOverrideCycleStart == current?.cycleStart }
     val phase = override ?: current?.phase
 
-    Screen(title = today.weekdayLong(), nav = null) {
+    val haptic = LocalHapticFeedback.current
+    var selectedDay by remember { mutableStateOf<Int?>(null) }
+    val profile = data.profile
+    val hour = java.time.LocalTime.now().hour
+    val greet = when (hour) { in 5..10 -> "Guten Morgen"; in 11..17 -> "Hallo"; in 18..22 -> "Guten Abend"; else -> "Gute Nacht" }
+
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().height(420.dp).background(phaseHeaderBrush(phase)))
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(if (profile != null) "$greet, ${profile.name}" else greet, style = MaterialTheme.typography.headlineSmall)
+                Text(today.weekdayLong(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            IconButton(onClick = { nav.navigate(Routes.guide("home")) }) { Icon(Icons.Rounded.HelpOutline, "Hilfe") }
+        }
+
+        if (profile?.isBirthday(today) == true) {
+            SectionCard(container = MaterialTheme.colorScheme.primaryContainer) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Cake, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(32.dp))
+                    Spacer(Modifier.width(12.dp))
+                    Text("Alles Liebe zum ${profile.age(today)}. Geburtstag, ${profile.name}!", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+        }
+        if (profile == null) {
+            SectionCard(title = "Wie heißt du?", icon = Icons.Rounded.Face) {
+                HintText("Name und Geburtsdatum machen die App persönlich und das Alter genau. Beides bleibt verschlüsselt auf diesem Gerät.")
+                ProfileFields(vm, data)
+            }
+        }
+
         if (current == null) {
             SectionCard(title = "Willkommen", icon = Icons.Rounded.Info) {
                 HintText("Es ist noch keine Periode erfasst. Trage vergangene Perioden nach oder starte mit der heutigen.")
@@ -86,13 +142,19 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         } else {
             val medDays = current.medicationToday.filter { it.schedule == ScheduleType.CYCLIC }
                 .flatMap { (it.cycleDayFrom ?: 0)..(it.cycleDayTo ?: -1) }.toSet()
-            SectionCard(container = MaterialTheme.colorScheme.surfaceContainerLowest) {
-                CycleRing(current, medDays, Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+            val unrestByDay = data.episodes.filter { !it.date.isBefore(current.cycleStart) }
+                .groupBy { daysBetween(current.cycleStart, it.date) + 1 }.mapValues { (_, l) -> l.maxOf { it.level } }
+            SectionCard(container = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.92f)) {
+                CycleRing(
+                    current, medDays, Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    unrestByDay = unrestByDay, selectedDay = selectedDay,
+                    onDayTap = { d -> selectedDay = if (selectedDay == d) null else d },
+                ) {
                     Text("Zyklustag", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("${current.cycleDay}", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onSurface)
                     if (phase != null) {
                         Row(
-                            Modifier.clickable { phaseDialog = true }.padding(4.dp),
+                            Modifier.clip(RoundedCornerShape(12.dp)).clickable { phaseDialog = true }.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(phase.icon(), null, tint = pc.of(phase), modifier = Modifier.size(18.dp))
@@ -101,6 +163,10 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                         }
                     }
                 }
+                AnimatedVisibility(selectedDay != null) {
+                    selectedDay?.let { d -> DayPeek(data, current.cycleStart.plusDays(d - 1L), d, nav) { selectedDay = null } }
+                }
+                if (selectedDay == null) HintText("Tipp: Tippe auf einen Tag im Ring für Details. Punkte außen zeigen Unruhe.", Modifier.fillMaxWidth(), center = true)
                 val pred = current.prediction
                 val predText = when {
                     pred.overdueDays > 0 -> "Periode überfällig seit ${pred.overdueDays} ${if (pred.overdueDays == 1) "Tag" else "Tagen"}"
@@ -132,6 +198,8 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 }
             }
 
+            WeekStrip(stripDays(data), today) { nav.navigate(Routes.day(it)) }
+
             if (s.straw == StrawStage.EARLY || s.straw == StrawStage.LATE) {
                 SectionCard(title = s.straw.label, icon = Icons.Rounded.Info, container = MaterialTheme.colorScheme.tertiaryContainer) {
                     Text(s.straw.description, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onTertiaryContainer)
@@ -141,7 +209,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
 
         // Schnellaktionen
         Button(
-            onClick = { nav.navigate(Routes.entry()) },
+            onClick = { haptic.performHapticFeedback(HapticFeedbackType.ContextClick); nav.navigate(Routes.entry()) },
             modifier = Modifier.fillMaxWidth().height(64.dp),
             shape = MaterialTheme.shapes.large,
         ) {
@@ -150,7 +218,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FilledTonalButton(
-                onClick = { nav.navigate(Routes.unrest()) },
+                onClick = { haptic.performHapticFeedback(HapticFeedbackType.ContextClick); nav.navigate(Routes.unrest()) },
                 modifier = Modifier.weight(1f).height(56.dp),
                 shape = MaterialTheme.shapes.large,
                 colors = ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentColor = MaterialTheme.colorScheme.onTertiaryContainer),
@@ -161,6 +229,22 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 shape = MaterialTheme.shapes.large,
             ) { Icon(Icons.Rounded.EditNote, null); Spacer(Modifier.width(8.dp)); Text("Notiz", maxLines = 1) }
         }
+
+        // Belastungshinweise für die nächsten 7 Tage
+        StressForecast.upcoming(s, data.events, data.episodes, data.occurrences, today).forEach { r -> StressHintCard(r, data, nav) }
+
+        // Wochenrückblick (Sonntag und Montag)
+        if (data.settings.weeklyReview && (today.dayOfWeek == java.time.DayOfWeek.SUNDAY || today.dayOfWeek == java.time.DayOfWeek.MONDAY)) {
+            val review = WeeklyReviewBuilder.build(s, data.occurrences, data.episodes, data.events,
+                if (today.dayOfWeek == java.time.DayOfWeek.MONDAY) today.minusDays(1) else today)
+            SectionCard(title = "Dein Wochenrückblick", icon = Icons.Rounded.AutoStories, container = MaterialTheme.colorScheme.secondaryContainer) {
+                Text(WeeklyReviewBuilder.shortText(review), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = { nav.navigate(Routes.WEEKLY) }) { Text("Rückblick ansehen") }
+            }
+        }
+
+        TrendsCard(data, nav)
+        PeriCard(vm, data, nav)
 
         // Anstehende Ereignisse mit Zyklusprognose
         val upcoming = data.events.filter { !it.date.isBefore(today) && daysBetween(today, it.date) <= 21 }.sortedBy { it.date }.take(3)
@@ -239,6 +323,9 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                     }
                 }
             }
+        }
+
+        Spacer(Modifier.height(24.dp))
         }
     }
 

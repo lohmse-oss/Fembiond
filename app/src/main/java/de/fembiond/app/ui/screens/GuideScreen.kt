@@ -20,6 +20,9 @@ import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.TipsAndUpdates
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Medication
 import androidx.compose.material.icons.rounded.Mic
@@ -58,6 +61,29 @@ object Guide {
 - **Phase antippen**, um sie für den aktuellen Zyklus manuell festzulegen.
 - Die nächste Periode wird als **Spanne** angegeben. Bei unregelmäßigen Zyklen wird sie breiter; unter zyklischem Progesteron rechnet die App mit der Abbruchblutung nach der letzten Einnahme.
 - **Periode beginnt/endet heute** setzt Beginn und Ende mit einem Tipp.
+- **Tag im Ring antippen** zeigt eine Kurzinfo zu diesem Tag. Farbige Punkte außen am Ring markieren Unruhe – je größer und röter, desto stärker.
+- Der Kopfbereich ist in der Farbe der aktuellen Phase hinterlegt.
+- Der **Wochenstreifen** unter dem Ring zeigt die letzten Tage mit Phase (Balken), Unruhe (Punkt) und Schlafqualität (Mond). Nach links wischen für frühere Wochen, antippen öffnet den Tag.
+- **Letzte 14 Tage**: kleine Verläufe für Unruhe, Schlaf, Energie und Hitzewallungen.
+""".trimIndent()),
+        GuideSection("planning", "Belastungshinweis", Icons.Rounded.TipsAndUpdates, """
+- Für Ereignisse in den nächsten 7 Tagen prüft die App, ob mehrere Belastungen zusammenkommen:
+- das Ereignis fällt voraussichtlich in die Tage vor der Periode,
+- diese Art Ereignis war bisher oft mit starker Unruhe verbunden,
+- du hast zuletzt schlecht geschlafen oder warst bereits unruhig,
+- direkt davor oder danach steht noch etwas an.
+- Dann erscheint auf dem Startbildschirm ein freundlicher Hinweis mit Ideen, was helfen kann – auch mit dem, was dir bisher geholfen hat. Am Vortag kommt er auch als Erinnerung.
+""".trimIndent()),
+        GuideSection("weekly", "Wochenrückblick", Icons.Rounded.AutoStories, """
+- Jeden Sonntag fasst die App deine Woche zusammen: Unruhe, Schlaf, Hitzewallungen und gute Tage – jeweils im Vergleich zu den vier Wochen davor.
+- Dazu siehst du die Ereignisse der nächsten Woche mit voraussichtlicher Zyklusphase.
+- Der Rückblick erscheint sonntags und montags auf dem Startbildschirm und als Benachrichtigung. Abschaltbar unter Einstellungen.
+""".trimIndent()),
+        GuideSection("peri", "Perimenopause & MRS", Icons.Rounded.LocalFireDepartment, """
+- Auf dem Startbildschirm erfasst du **Hitzewallungen** und **Nachtschweiß** mit einem Tipp, die Uhrzeit wird automatisch gespeichert.
+- Der **MRS-Fragebogen** (Menopause Rating Scale) fragt alle 4 Wochen 11 Beschwerden ab (0 = keine bis 4 = sehr stark). Er ergibt einen Gesamtwert (0–44) und drei Teilwerte: körperlich, psychisch, urogenital.
+- Einordnung des Gesamtwerts: 0–4 keine bis gering, 5–8 leicht, 9–15 mittel, ab 16 stark.
+- In der Auswertung findest du unter **Perimenopause** die STRAW-Einordnung, Hitzewallungen pro Monat und nach Phase sowie den MRS-Verlauf.
 """.trimIndent()),
         GuideSection("entry", "Befinden eintragen – Text & Sprache", Icons.Rounded.Mic, """
 - Tippe auf **Wie geht es dir gerade?** und schreibe oder sprich frei, z. B. „ziemlich müde, Kopfweh, innere Unruhe Stärke 3“.
@@ -107,6 +133,8 @@ object Guide {
 - **Vor der Periode vs. danach**: vergleicht die 7 Tage vor der Periode mit Tag 4–10 (DRSP-Methode). Ab etwa 30 % Zunahme gilt ein Muster als deutlich.
 - **Unruhe nach Phase**: Anzahl, mittlere Stufe und relative Häufigkeit (1× = Durchschnitt; berücksichtigt, wie lang die Phasen sind).
 - **Unruhe rund um Ereignisse**: mittlere höchste Stufe an den Tagen vor und nach Ereignissen – zeigt, wie sich Erwartungsunruhe aufbaut. Dazu Auswertungen nach Ereignisart und nach Zeitpunkt im Zyklus.
+- **Jahresübersicht**: ein Kästchen pro Tag der letzten 12 Monate, gefärbt nach Unruhe; Periodentage umrandet.
+- **Zyklen übereinander**: die letzten Zyklen nach Zyklustag übereinandergelegt (Unruhe, Schlaf, Energie oder Hitzewallungen). Die kräftige Linie ist der Mittelwert.
 - **Zusammenhänge** sind Hinweise, keine Beweise für Ursachen.
 """.trimIndent()),
         GuideSection("terms", "Begriffe verwalten", Icons.AutoMirrored.Rounded.Label, """
@@ -115,6 +143,7 @@ object Guide {
 """.trimIndent()),
         GuideSection("widget", "Widget einrichten", Icons.Rounded.Widgets, """
 - Startbildschirm lange gedrückt halten → **Widgets** → **Fembiond** → auf den Startbildschirm ziehen.
+- Es gibt drei Widgets: **Fembiond Zyklus** (4×1, skalierbar), **Fembiond Ring** (2×2, großer Ring) und **Fembiond Unruhe** (1×1, Schnelltaste ohne Gesundheitsdaten).
 - 4×1: Mini-Zyklusring mit Zyklustag, Phase und Prognose. Kapsel antippen hakt die Einnahme ab. Bei genug Breite gibt es eine Plus-Taste für einen Eintrag.
 - Auf 4×2 vergrößert: zusätzlich Phasenbalken, nächstes Ereignis und Schnelltasten „Befinden“ und „Unruhe“.
 - Ist die App-Sperre aktiv, zeigt das Widget keine Gesundheitsdaten.

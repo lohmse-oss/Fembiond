@@ -136,6 +136,8 @@ object Routes {
     const val UNREST = "unrest?event={event}&day={day}"
     const val EVENTS = "events"
     const val ABOUT = "about"
+    const val MRS = "mrs"
+    const val WEEKLY = "weekly"
     const val GUIDE = "guide?open={open}"
     fun guide(open: String? = null) = "guide?open=${open ?: ""}"
     const val DAY = "day/{day}"
@@ -182,7 +184,13 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
             }
         },
     ) { pad ->
-        NavHost(nav, Routes.HOME, Modifier.padding(bottom = pad.calculateBottomPadding())) {
+        NavHost(
+            nav, Routes.HOME, Modifier.padding(bottom = pad.calculateBottomPadding()),
+            enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) + androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(260)) { it / 12 } },
+            exitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) },
+            popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) },
+            popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) + androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { it / 12 } },
+        ) {
             composable(Routes.HOME) { HomeScreen(vm, data, nav) }
             composable(Routes.CALENDAR) { CalendarScreen(data, nav) }
             composable(Routes.ANALYSIS) { AnalysisScreen(data, nav) }
@@ -198,6 +206,8 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
                 UnrestScreen(vm, data, nav, ev, day)
             }
             composable(Routes.EVENTS) { EventsScreen(vm, data, nav) }
+            composable(Routes.MRS) { de.fembiond.app.ui.screens.MrsScreen(vm, data, nav) }
+            composable(Routes.WEEKLY) { de.fembiond.app.ui.screens.WeeklyReviewScreen(data, nav) }
             composable(Routes.ABOUT) { de.fembiond.app.ui.screens.AboutScreen(data, nav) }
             composable(Routes.GUIDE) { b -> de.fembiond.app.ui.screens.GuideScreen(nav, b.arguments?.getString("open")?.takeIf { it.isNotBlank() }) }
             composable(Routes.DAY) { b ->

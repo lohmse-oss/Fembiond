@@ -74,14 +74,14 @@ private fun phaseArgb(p: Phase): Int = when (p) {
     Phase.LUTEAL -> 0xFFA0569A.toInt()
 }
 
-private val Surface = ColorProvider(day = Color(0xFFFCF0F2), night = Color(0xFF271F24))
-private val OnSurface = ColorProvider(day = Color(0xFF22191C), night = Color(0xFFEFDFE3))
-private val OnSurfaceVariant = ColorProvider(day = Color(0xFF514347), night = Color(0xFFD5C2C7))
-private val Primary = ColorProvider(day = Color(0xFFA0295B), night = Color(0xFFFFB1C8))
-private val PrimaryContainer = ColorProvider(day = Color(0xFFA0295B), night = Color(0xFF7E2949))
-private val Chip = ColorProvider(day = Color(0xFFF0E4E7), night = Color(0xFF3C3339))
+internal val Surface = ColorProvider(day = Color(0xFFFCF0F2), night = Color(0xFF271F24))
+internal val OnSurface = ColorProvider(day = Color(0xFF22191C), night = Color(0xFFEFDFE3))
+internal val OnSurfaceVariant = ColorProvider(day = Color(0xFF514347), night = Color(0xFFD5C2C7))
+internal val Primary = ColorProvider(day = Color(0xFFA0295B), night = Color(0xFFFFB1C8))
+internal val PrimaryContainer = ColorProvider(day = Color(0xFFA0295B), night = Color(0xFF7E2949))
+internal val Chip = ColorProvider(day = Color(0xFFF0E4E7), night = Color(0xFF3C3339))
 
-private fun phaseColor(p: Phase) = ColorProvider(day = Color(phaseArgb(p)), night = Color(phaseArgb(p)))
+internal fun phaseColor(p: Phase) = ColorProvider(day = Color(phaseArgb(p)), night = Color(phaseArgb(p)))
 
 /** Zustand, den das Widget anzeigt. */
 data class WidgetState(
@@ -161,11 +161,11 @@ class CycleWidget : GlanceAppWidget() {
         val ROOMY = DpSize(320.dp, 48.dp)
         val TALL = DpSize(250.dp, 110.dp)
 
-        suspend fun refresh(context: Context) = runCatching { CycleWidget().updateAll(context) }
+        suspend fun refresh(context: Context) = runCatching { CycleWidget().updateAll(context); RingWidget().updateAll(context) }
     }
 }
 
-private fun openIntent(context: Context, route: String?): Intent =
+internal fun openIntent(context: Context, route: String?): Intent =
     Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         if (route != null) putExtra(MainActivity.EXTRA_ROUTE, route)

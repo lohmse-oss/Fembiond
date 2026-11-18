@@ -1,7 +1,6 @@
 package de.fembiond.app.data
 
 import android.content.Context
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -27,9 +26,9 @@ data class Settings(
     val gadIntervalDays: Int = 14,
     val reminderEnabled: Boolean = true,
     val reminderHour: Int = 20,
-) {
-    val age: Int? get() = birthYear?.let { LocalDate.now().year - it }
-}
+    val mrsIntervalDays: Int = 28,
+    val weeklyReview: Boolean = true,
+)
 
 private val Context.dataStore by preferencesDataStore("settings")
 
@@ -46,6 +45,8 @@ class SettingsStore(private val context: Context) {
         val gad = intPreferencesKey("gadInterval")
         val reminder = booleanPreferencesKey("reminder")
         val reminderHour = intPreferencesKey("reminderHour")
+        val mrs = intPreferencesKey("mrsInterval")
+        val weekly = booleanPreferencesKey("weeklyReview")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { p ->
@@ -61,6 +62,8 @@ class SettingsStore(private val context: Context) {
             gadIntervalDays = p[K.gad] ?: 14,
             reminderEnabled = p[K.reminder] ?: true,
             reminderHour = p[K.reminderHour] ?: 20,
+            mrsIntervalDays = p[K.mrs] ?: 28,
+            weeklyReview = p[K.weekly] ?: true,
         )
     }
 
@@ -78,9 +81,8 @@ class SettingsStore(private val context: Context) {
             p[K.gad] = n.gadIntervalDays
             p[K.reminder] = n.reminderEnabled
             p[K.reminderHour] = n.reminderHour
+            p[K.mrs] = n.mrsIntervalDays
+            p[K.weekly] = n.weeklyReview
         }
     }
-
-    @Suppress("unused")
-    private fun <T> Preferences.getOr(key: Preferences.Key<T>, default: T): T = this[key] ?: default
 }

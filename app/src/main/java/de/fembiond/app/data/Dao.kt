@@ -108,6 +108,26 @@ interface FembiondDao {
     @Query("DELETE FROM events") suspend fun clearEvents()
     @Insert suspend fun restoreEvents(l: List<EventEntity>)
 
+    // MRS
+    @Query("SELECT * FROM mrs ORDER BY day")
+    fun mrs(): Flow<List<MrsEntity>>
+
+    @Insert
+    suspend fun insertMrs(m: MrsEntity)
+
+    @Query("SELECT * FROM mrs") suspend fun allMrs(): List<MrsEntity>
+    @Query("DELETE FROM mrs") suspend fun clearMrs()
+    @Insert suspend fun restoreMrs(l: List<MrsEntity>)
+
+    // Profil
+    @Query("SELECT * FROM profile WHERE id = 1")
+    fun profile(): Flow<ProfileEntity?>
+
+    @Upsert
+    suspend fun upsertProfile(p: ProfileEntity)
+
+    @Query("SELECT * FROM profile WHERE id = 1") suspend fun profileOnce(): ProfileEntity?
+
     // Medikation
     @Query("SELECT * FROM med_phases ORDER BY start")
     fun medPhases(): Flow<List<MedPhaseEntity>>
@@ -162,6 +182,6 @@ interface FembiondDao {
 
     @Transaction
     suspend fun clearAll() {
-        clearEntries(); clearPanics(); clearEvents(); clearMeds(); clearGad(); clearSynonyms(); clearTerms(); clearPeriods()
+        clearEntries(); clearPanics(); clearEvents(); clearMrs(); clearMeds(); clearGad(); clearSynonyms(); clearTerms(); clearPeriods()
     }
 }

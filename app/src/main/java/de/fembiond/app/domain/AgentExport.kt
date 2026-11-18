@@ -27,6 +27,7 @@ object AgentExport {
         intakes: Set<Pair<Long, LocalDate>>,
         notes: List<Pair<LocalDate, String>>,
         today: LocalDate,
+        mrs: List<MrsRecord> = emptyList(),
     ): String {
         val s = input.summary
         val doc = buildJsonObject {
@@ -127,6 +128,14 @@ object AgentExport {
                         put("outcome", e.outcome.name)
                         info?.let { put("cycle_day", it.cycleDay); put("phase", it.phase.name); put("phase_is_forecast", it.predicted && e.date.isAfter(today)) }
                         if (!e.date.isAfter(today)) put("max_unrest_level_3_days_before_to_event", Analytics.anticipatoryLevel(e, input.episodes))
+                    })
+                }
+            }
+            putJsonArray("mrs_menopause_rating_scale") {
+                mrs.filter { !it.date.isBefore(input.from) }.forEach { m ->
+                    add(buildJsonObject {
+                        put("date", m.date.toString()); put("total_0_44", m.total)
+                        put("somatic_0_16", m.somatic); put("psychological_0_16", m.psychological); put("urogenital_0_12", m.urogenital)
                     })
                 }
             }

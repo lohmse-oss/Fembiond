@@ -7,6 +7,8 @@ import de.fembiond.app.domain.GadRecord
 import de.fembiond.app.domain.Lexicon
 import de.fembiond.app.domain.MedicationPhase
 import de.fembiond.app.domain.Episode
+import de.fembiond.app.domain.MrsRecord
+import de.fembiond.app.domain.Profile
 import de.fembiond.app.domain.EventOutcome
 import de.fembiond.app.domain.PlannedEvent
 import de.fembiond.app.domain.PeriodRecord
@@ -65,12 +67,23 @@ data class AppData(
     val episodes: List<Episode>,
     val events: List<PlannedEvent>,
     val gad: List<GadRecord>,
+    val mrs: List<MrsRecord>,
+    val profile: Profile?,
     val terms: List<TermInfo>,
     val summary: CycleSummary,
     val parser: TermParser,
 ) {
     fun suggestions(category: Category): List<TermInfo> =
         terms.filter { it.category == category && !it.hidden }.sortedByDescending { it.score }
+
+    /** Alter aus dem Geburtsdatum (Profil), sonst aus dem Geburtsjahr. */
+    val age: Int? get() = profile?.age(today) ?: settings.birthYear?.let { today.year - it }
+
+    val mrsDue: Boolean
+        get() {
+            val last = mrs.maxOfOrNull { it.date } ?: return occurrences.isNotEmpty()
+            return ChronoUnit.DAYS.between(last, today) >= settings.mrsIntervalDays
+        }
 
     val gadDue: Boolean
         get() {
@@ -93,6 +106,8 @@ data class BackupData(
     val intakes: List<IntakeEntity>,
     val gad: List<GadEntity>,
     val events: List<EventEntity> = emptyList(),
+    val mrs: List<MrsEntity> = emptyList(),
+    val profile: ProfileEntity? = null,
 )
 
 class Repository(
@@ -115,8 +130,8 @@ class Repository(
         dao.insertTerms(seeds)
     }
 
-    private val base: Flow<Triple<Settings, List<PeriodEntity>, List<MedPhaseEntity>>> =
-        combine(settingsStore.settings, dao.periods(), dao.medPhases()) { s, p, m -> Triple(s, p, m) }
+    private val base: Flow<Triple<Settings, List<PeriodEntity>, Triple<List<MedPhaseEntity>, List<MrsEntity>, ProfileEntity?>>> =
+        combine(settingsStore.settings, dao.periods(), dao.medPhases(), dao.mrs(), dao.profile()) { s, p, m, r, pr -> Triple(s, p, Triple(m, r, pr)) }
 
     private val records: Flow<Triple<List<OccurrenceRow>, List<EntryEntity>, Pair<List<PanicEntity>, List<PanicTermRow>>>> =
         combine(dao.occurrences(), dao.entries(), dao.panics(), dao.panicTerms()) { o, e, p, pt -> Triple(o, e, p to pt) }
@@ -131,12 +146,13 @@ class Repository(
     private var cachedParser: TermParser? = null
 
     private fun build(
-        b: Triple<Settings, List<PeriodEntity>, List<MedPhaseEntity>>,
+        b: Triple<Settings, List<PeriodEntity>, Triple<List<MedPhaseEntity>, List<MrsEntity>, ProfileEntity?>>,
         r: Triple<List<OccurrenceRow>, List<EntryEntity>, Pair<List<PanicEntity>, List<PanicTermRow>>>,
         v: Triple<List<TermEntity>, List<SynonymEntity>, Triple<List<IntakeEntity>, List<GadEntity>, List<EventEntity>>>,
     ): AppData {
         val today = LocalDate.now()
-        val (settings, periodE, medE) = b
+        val (settings, periodE, extra) = b
+        val (medE, mrsE, profileE) = extra
         val periods = periodE.map { it.toDomain() }
         val meds = medE.map { it.toDomain() }
         val summary = CycleEngine.analyze(periods, meds, today, settings.typicalCycle, settings.typicalPeriod)
@@ -199,6 +215,8 @@ class Repository(
                     runCatching { EventOutcome.valueOf(e.outcome) }.getOrDefault(EventOutcome.PLANNED))
             },
             gad = rest.second.map { GadRecord(LocalDate.ofEpochDay(it.day), it.score) },
+            mrs = mrsE.map { m -> MrsRecord(LocalDate.ofEpochDay(m.day), m.answers.split(",").mapNotNull { it.toIntOrNull() }) },
+            profile = profileE?.let { Profile(it.name, it.birthDate?.let(LocalDate::ofEpochDay)) },
             terms = terms,
             summary = summary,
             parser = parser,
@@ -318,6 +336,14 @@ class Repository(
     suspend fun saveGad(date: LocalDate, answers: List<Int>) =
         dao.insertGad(GadEntity(day = date.toEpochDay(), answers = answers.joinToString(","), score = answers.sum()))
 
+    // ---------- MRS & Profil ----------
+
+    suspend fun saveMrs(date: LocalDate, answers: List<Int>) =
+        dao.insertMrs(MrsEntity(day = date.toEpochDay(), answers = answers.joinToString(","), total = answers.sum()))
+
+    suspend fun saveProfile(name: String, birthDate: LocalDate?) =
+        dao.upsertProfile(ProfileEntity(1, name.trim(), birthDate?.toEpochDay()))
+
     // ---------- Einstellungen ----------
 
     suspend fun updateSettings(block: (Settings) -> Settings) {
@@ -334,6 +360,7 @@ class Repository(
             periods = dao.periodsOnce(), terms = dao.termsOnce(), synonyms = dao.allSynonyms(), entries = dao.allEntries(),
             entryTerms = dao.allEntryTerms(), panics = dao.allPanics(), panicTerms = dao.allPanicTerms(),
             meds = dao.allMedPhases(), intakes = dao.allIntakes(), gad = dao.allGad(), events = dao.allEvents(),
+            mrs = dao.allMrs(), profile = dao.profileOnce(),
         ),
     )
 
@@ -342,7 +369,8 @@ class Repository(
         dao.clearAll()
         dao.restorePeriods(b.periods); dao.restoreTerms(b.terms); dao.restoreSynonyms(b.synonyms)
         dao.restoreEntries(b.entries); dao.restoreEntryTerms(b.entryTerms); dao.restorePanics(b.panics)
-        dao.restorePanicTerms(b.panicTerms); dao.restoreMeds(b.meds); dao.restoreIntakes(b.intakes); dao.restoreGad(b.gad); dao.restoreEvents(b.events)
+        dao.restorePanicTerms(b.panicTerms); dao.restoreMeds(b.meds); dao.restoreIntakes(b.intakes); dao.restoreGad(b.gad); dao.restoreEvents(b.events); dao.restoreMrs(b.mrs)
+        b.profile?.let { dao.upsertProfile(it) }
     }
 
     companion object {

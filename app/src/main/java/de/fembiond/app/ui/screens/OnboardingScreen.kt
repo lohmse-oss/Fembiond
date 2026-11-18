@@ -60,14 +60,13 @@ import java.time.LocalDate
 @Composable
 fun OnboardingScreen(vm: AppViewModel, data: AppData) {
     var step by rememberSaveable { mutableStateOf(0) }
-    var birthYear by rememberSaveable { mutableStateOf(data.settings.birthYear?.toString() ?: "") }
     var cycle by rememberSaveable { mutableStateOf(data.settings.typicalCycle) }
     var period by rememberSaveable { mutableStateOf(data.settings.typicalPeriod) }
     val steps = 4
 
     fun finish() {
         vm.run {
-            updateSettings { it.copy(onboardingDone = true, birthYear = birthYear.toIntOrNull(), typicalCycle = cycle, typicalPeriod = period) }
+            updateSettings { it.copy(onboardingDone = true, typicalCycle = cycle, typicalPeriod = period) }
         }
     }
 
@@ -84,7 +83,7 @@ fun OnboardingScreen(vm: AppViewModel, data: AppData) {
                         Spacer(Modifier.weight(1f))
                         if (step in 2 until steps - 1) TextButton(onClick = { step++ }) { Text("Überspringen") }
                         Button(onClick = {
-                            if (step == 1) vm.run { updateSettings { it.copy(birthYear = birthYear.toIntOrNull(), typicalCycle = cycle, typicalPeriod = period) } }
+                            if (step == 1) vm.run { updateSettings { it.copy(typicalCycle = cycle, typicalPeriod = period) } }
                             if (step < steps - 1) step++ else finish()
                         }, modifier = Modifier.height(52.dp)) { Text(if (step < steps - 1) "Weiter" else "Los geht’s") }
                     }
@@ -95,22 +94,23 @@ fun OnboardingScreen(vm: AppViewModel, data: AppData) {
         when (step) {
             0 -> {
                 SectionCard(title = "Willkommen bei Fembiond", icon = Icons.Rounded.Spa) {
-                    Text("Fembiond hilft dir, Zyklus, Körper und Stimmung festzuhalten und Zusammenhänge zu erkennen – etwa zwischen Zyklusphase, innerer Unruhe und Panikattacken.")
+                    Text("Diese App ist ganz für dich gemacht. Fembiond hilft dir, Zyklus, Körper und Stimmung festzuhalten und Zusammenhänge zu erkennen – etwa zwischen Zyklusphase, innerer Unruhe und Panikattacken.")
                     HintText("Die App dokumentiert Muster und ersetzt keine ärztliche Beratung.")
                 }
                 SectionCard(title = "Deine Daten bleiben bei dir", icon = Icons.Rounded.Lock) {
                     Text("Alles wird verschlüsselt nur auf diesem Gerät gespeichert. Es gibt keinen Server und keine Cloud. Exporte und Sicherungen teilst du nur, wenn du es selbst möchtest.")
                 }
             }
-            1 -> SectionCard(title = "Grunddaten") {
-                OutlinedTextField(
-                    birthYear, { birthYear = it.filter(Char::isDigit).take(4) },
-                    label = { Text("Geburtsjahr (für die Einordnung Perimenopause)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth(),
-                )
+            1 -> {
+                SectionCard(title = "Über dich") {
+                    if (data.profile != null) Text("Hallo ${data.profile.name}! Angaben gespeichert – du kannst sie später in den Einstellungen ändern.")
+                    else ProfileFields(vm, data, "Übernehmen")
+                }
+                SectionCard(title = "Zyklus") {
                 Stepper("Typische Zykluslänge", cycle, 18..60, "Tage") { cycle = it }
                 Stepper("Typische Periodenlänge", period, 1..12, "Tage") { period = it }
                 HintText("Schätzwerte genügen. Sobald Perioden erfasst sind, rechnet die App mit deinen echten Werten.")
+                }
             }
             2 -> {
                 HintText("Trage vergangene Perioden aus deinen Notizen ein. Schon 3–6 Zyklen machen die Prognose deutlich besser.")

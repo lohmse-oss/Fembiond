@@ -116,7 +116,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     val canLock = BiometricManager.from(context).canAuthenticate(
         BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
     ) == BiometricManager.BIOMETRIC_SUCCESS
-    var birthYear by remember { mutableStateOf(s.birthYear?.toString() ?: "") }
 
     Screen(title = "Einstellungen", nav = nav) {
         SectionCard(title = "Darstellung") {
@@ -137,15 +136,16 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 Switch(s.reminderEnabled, { on -> vm.run { updateSettings { it.copy(reminderEnabled = on) } } })
             }
             Stepper("Uhrzeit", s.reminderHour, 6..23, "Uhr") { h -> vm.run { updateSettings { it.copy(reminderHour = h) } } }
-            HintText("Erinnert an fällige Einnahmen laut Schema (verschiebt sich mit dem Zyklus) und an den GAD-7-Check.")
+            HintText("Erinnert an fällige Einnahmen laut Schema (verschiebt sich mit dem Zyklus), an Ereignisse am Vortag und an die Fragebögen.")
             Stepper("GAD-7 alle", s.gadIntervalDays, 7..60, "Tage") { d -> vm.run { updateSettings { it.copy(gadIntervalDays = d) } } }
+            Stepper("MRS alle", s.mrsIntervalDays, 14..90, "Tage") { d -> vm.run { updateSettings { it.copy(mrsIntervalDays = d) } } }
+            LabeledRow("Wochenrückblick am Sonntag") {
+                Switch(s.weeklyReview, { on -> vm.run { updateSettings { it.copy(weeklyReview = on) } } })
+            }
         }
-        SectionCard(title = "Grunddaten") {
-            OutlinedTextField(birthYear, {
-                birthYear = it.filter(Char::isDigit).take(4)
-                val y = birthYear.toIntOrNull()
-                if (birthYear.length == 4 && y != null) vm.run { updateSettings { st -> st.copy(birthYear = y) } }
-            }, label = { Text("Geburtsjahr") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        SectionCard(title = "Über dich & Zyklus") {
+            ProfileFields(vm, data)
+            HorizontalDivider()
             Stepper("Typische Zykluslänge", s.typicalCycle, 18..60, "Tage") { v -> vm.run { updateSettings { it.copy(typicalCycle = v) } } }
             Stepper("Typische Periodenlänge", s.typicalPeriod, 1..12, "Tage") { v -> vm.run { updateSettings { it.copy(typicalPeriod = v) } } }
             HintText("Diese Werte werden nur genutzt, solange zu wenige echte Zyklen erfasst sind.")

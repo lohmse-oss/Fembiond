@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_description">Zyklustag, Phase, nächste Periode und Medikation auf einen Blick</string>
+    <string name="ring_widget_description">Großer Zyklusring mit Zyklustag, Phase und Prognose</string>
+    <string name="unrest_widget_description">Schnelltaste: Unruhe erfassen</string>
 </resources>

@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.navigation.NavController
 import de.fembiond.app.data.AppData
 import de.fembiond.app.domain.Category
@@ -65,6 +66,7 @@ private val whenOptions = listOf(0 to "gerade eben", 60 to "vor 1 Std.", 180 to 
 @Composable
 fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectEvent: Long? = null, day: LocalDate? = null) {
     val scope = rememberCoroutineScope()
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     var level by rememberSaveable { mutableStateOf<Int?>(null) }
     var duration by rememberSaveable { mutableStateOf<Int?>(null) }
     var ago by rememberSaveable { mutableStateOf(0) }
@@ -93,6 +95,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
                     Button(
                         enabled = l != null,
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                             val time = if (day != null && day != data.today) day.atTime(12, 0) else LocalDateTime.now().minusMinutes(ago.toLong())
                             vm.run { saveEpisode(time, duration, l!!, symptoms.toList(), triggers.toList(), helped.toList(), note, eventId = eventId) }
                             nav.popBackStack()
@@ -109,7 +112,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
             UnrestLevel.entries.forEach { u ->
                 val selected = level == u.level
                 Card(
-                    onClick = { level = u.level },
+                    onClick = { haptic.performHapticFeedback(if (u.level >= 4) HapticFeedbackType.LongPress else HapticFeedbackType.SegmentTick); level = u.level },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
                     border = if (selected) BorderStroke(2.dp, unrestColor(u.level)) else null,

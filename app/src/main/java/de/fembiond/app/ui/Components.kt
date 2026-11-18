@@ -1,6 +1,9 @@
 package de.fembiond.app.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -115,7 +118,7 @@ fun SectionCard(
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.animateContentSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (title != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (icon != null) {
@@ -139,6 +142,7 @@ fun HintText(text: String, modifier: Modifier = Modifier, center: Boolean = fals
 /** Intensität 1–5 als fünf antippbare Punkte. */
 @Composable
 fun IntensitySelector(value: Int?, onChange: (Int?) -> Unit, modifier: Modifier = Modifier) {
+    val haptic = LocalHapticFeedback.current
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         for (i in 1..5) {
             val active = value != null && i <= value
@@ -147,7 +151,7 @@ fun IntensitySelector(value: Int?, onChange: (Int?) -> Unit, modifier: Modifier 
                     .size(32.dp)
                     .clip(CircleShape)
                     .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .clickable { onChange(if (value == i) null else i) }
+                    .clickable { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); onChange(if (value == i) null else i) }
                     .semantics { contentDescription = "Intensität $i" },
                 contentAlignment = Alignment.Center,
             ) {
@@ -184,9 +188,10 @@ fun TermChip(
     onClick: () -> Unit,
     icon: ImageVector? = null,
 ) {
+    val haptic = LocalHapticFeedback.current
     FilterChip(
         selected = selected,
-        onClick = onClick,
+        onClick = { haptic.performHapticFeedback(if (selected) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn); onClick() },
         label = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -241,71 +246,6 @@ fun PhaseLegend(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Zyklusring: ein Segment pro Zyklustag in Phasenfarbe. Vergangene Tage kräftig, zukünftige blass,
- * fruchtbares Fenster als Außenband, Einnahmetage als Innenmarken, heute als Punkt.
- */
-@Composable
-fun CycleRing(state: CurrentState, medicationDays: Set<Int>, modifier: Modifier = Modifier, center: @Composable () -> Unit) {
-    val pc = LocalPhaseColors.current
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    val marker = MaterialTheme.colorScheme.onSurface
-    val medColor = MaterialTheme.colorScheme.tertiary
-    val total = max(state.expectedLength, state.cycleDay)
-    val periodLen = if (state.inPeriod) max(state.cycleDay, 1) else 0
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.matchParentSizeCompat()) {
-            val stroke = size.minDimension * 0.075f
-            val radius = size.minDimension / 2 - stroke * 1.4f
-            val c = Offset(size.width / 2, size.height / 2)
-            val sweep = 360f / total
-            val gap = min(1.6f, sweep * 0.25f)
-            drawCircle(track, radius, c, style = Stroke(stroke))
-            for (d in 1..total) {
-                val length = state.expectedLength
-                val pLen = if (state.inPeriod) max(periodLen, 1) else min(5, length)
-                val phase = CycleEngine.phaseFor(d, max(length, d), pLen)
-                val base = pc.of(phase)
-                val color = if (d <= state.cycleDay) base else base.copy(alpha = 0.35f)
-                drawArc(
-                    color = color,
-                    startAngle = -90f + (d - 1) * sweep + gap / 2,
-                    sweepAngle = sweep - gap,
-                    useCenter = false,
-                    topLeft = Offset(c.x - radius, c.y - radius),
-                    size = Size(radius * 2, radius * 2),
-                    style = Stroke(stroke, cap = StrokeCap.Butt),
-                )
-                if (d in medicationDays) {
-                    val a = Math.toRadians((-90f + (d - 0.5f) * sweep).toDouble())
-                    val r1 = radius - stroke * 0.95f
-                    drawCircle(medColor, stroke * 0.14f, Offset(c.x + (r1 * cos(a)).toFloat(), c.y + (r1 * sin(a)).toFloat()))
-                }
-            }
-            state.fertileFrom?.let { ff ->
-                val fromDay = (ff.toEpochDay() - state.cycleStart.toEpochDay()).toInt() + 1
-                val toDay = (state.fertileTo!!.toEpochDay() - state.cycleStart.toEpochDay()).toInt() + 1
-                val outer = radius + stroke * 0.95f
-                drawArc(
-                    color = pc.ovulation.copy(alpha = 0.6f),
-                    startAngle = -90f + (fromDay - 1) * sweep,
-                    sweepAngle = (toDay - fromDay + 1) * sweep,
-                    useCenter = false,
-                    topLeft = Offset(c.x - outer, c.y - outer),
-                    size = Size(outer * 2, outer * 2),
-                    style = Stroke(stroke * 0.22f, cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))),
-                )
-            }
-            val a = Math.toRadians((-90f + (state.cycleDay - 0.5f) * sweep).toDouble())
-            val p = Offset(c.x + (radius * cos(a)).toFloat(), c.y + (radius * sin(a)).toFloat())
-            drawCircle(Color.White, stroke * 0.62f, p)
-            drawCircle(marker, stroke * 0.62f, p, style = Stroke(stroke * 0.18f))
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) { center() }
-    }
-}
-
-private fun Modifier.matchParentSizeCompat(): Modifier = this.fillMaxWidth().aspectRatio(1f)
 
 /** Heatmap Begriff × Zyklustag – Begriff über der Zeile, Zellen über die volle Breite. */
 @Composable

@@ -20,11 +20,11 @@ import javax.crypto.spec.GCMParameterSpec
     entities = [
         PeriodEntity::class, TermEntity::class, SynonymEntity::class, EntryEntity::class, EntryTermEntity::class,
         PanicEntity::class, PanicTermEntity::class, MedPhaseEntity::class, IntakeEntity::class, GadEntity::class,
-        EventEntity::class,
+        EventEntity::class, MrsEntity::class, ProfileEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class FembiondDatabase : RoomDatabase() {
     abstract fun dao(): FembiondDao

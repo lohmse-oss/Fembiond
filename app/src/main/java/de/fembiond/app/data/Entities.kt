@@ -150,3 +150,22 @@ data class OccurrenceRow(
 )
 
 data class PanicTermRow(val panicId: Long, val label: String, val category: String)
+
+/** Menopause Rating Scale: 11 Antworten 0–4. */
+@Serializable
+@Entity(tableName = "mrs")
+data class MrsEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val day: Long,
+    val answers: String,
+    val total: Int,
+)
+
+/** Persönliche Angaben – nur lokal und verschlüsselt gespeichert. */
+@Serializable
+@Entity(tableName = "profile")
+data class ProfileEntity(
+    @PrimaryKey val id: Int = 1,
+    val name: String,
+    val birthDate: Long?,
+)

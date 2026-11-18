@@ -34,5 +34,10 @@ class MigrationTest {
         }
         db.query("SELECT COUNT(*) FROM periods").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
         db.execSQL("INSERT INTO events (day, type, title, note, outcome) VALUES (20010, 'Konzert', '', '', 'PLANNED')")
+        db.close()
+        val v3 = helper.runMigrationsAndValidate("test.db", 3, true)
+        v3.query("SELECT COUNT(*) FROM events").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        v3.execSQL("INSERT INTO mrs (day, answers, total) VALUES (20020, '1,1,1,1,1,1,1,1,1,1,1', 11)")
+        v3.execSQL("INSERT INTO profile (id, name, birthDate) VALUES (1, 'Test', 6000)")
     }
 }

@@ -25,7 +25,9 @@ Die vollständige Spezifikation steht in [`docs/SPEZIFIKATION.md`](docs/SPEZIFIK
 - **Auswertung:** Zeitraum- und Kategoriefilter, Zykluslängen, Heatmap nach Zyklustag, Vergleich vor/nach der Periode
   (DRSP-Methode), Unruhe nach Phase und rund um Ereignisse, Zusammenhänge, Einfluss von Ereignissen, Verläufe, GAD-7.
 - **Export:** Markdown/JSON für KI-Agenten, PDF-Arztbericht, passwortgeschützte Sicherung (AES-256-GCM).
-- **Widget** (4×1, skalierbar): Mini-Zyklusring, Phase, Prognose, Einnahme direkt abhaken, Schnelleintrag.
+- **Persönlich & visuell:** Begrüßung, Phasen-Farbverlauf, animierter antippbarer Ring, Wochenstreifen, Mini-Verläufe, Jahresübersicht, Zyklen-Überlagerung.
+- **Belastungshinweis, Wochenrückblick, Perimenopause** (Hitzewallung mit einem Tipp, MRS-Fragebogen).
+- **Widgets**: 4×1 (skalierbar), 2×2 Ring, 1×1 Unruhe. Das 4×1-Widget: Mini-Zyklusring, Phase, Prognose, Einnahme direkt abhaken, Schnelleintrag.
   Bei 4×2 kommen ein Phasenbalken und Schnelltasten dazu. Bei aktivierter App-Sperre zeigt das Widget keine Gesundheitsdaten.
 - **Schutz:** SQLCipher-Datenbank mit Schlüssel im Android Keystore, optionale App-Sperre, keine Cloud-Sicherung.
 

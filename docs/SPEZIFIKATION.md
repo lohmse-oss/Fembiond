@@ -97,6 +97,28 @@ oft im Vorfeld anstehender Ereignisse (Geburtstagsfeier, Essen gehen, Konzert �
 
 Optional: GAD-7-Fragebogen alle 14 Tage.
 
+## 5a. Belastungshinweis und Wochenrückblick
+
+- **Belastungshinweis** für Ereignisse der nächsten 7 Tage, wenn Faktoren zusammenkommen: voraussichtlich in den 7 Tagen vor der Periode
+  (mit Vergleich zur bisherigen Erfahrung), Ereignisart bisher mit Ø Stufe ≥ 3, Schlafqualität der letzten 3 Tage Ø ≤ 2,
+  Unruhe der letzten 3 Tage ≥ Stufe 3, weiteres Ereignis innerhalb eines Tages. Ab 2 Faktoren „gut vorbereiten“.
+  Tipps: zuerst, was bisher geholfen hat, sonst allgemeine Strategien. Auch in der Vortags-Erinnerung.
+- **Wochenrückblick** sonntags (Startbildschirm So/Mo, Benachrichtigung): letzte 7 Tage im Vergleich zu den 4 Wochen davor
+  (Unruhe, Panik, Schlaf, Hitzewallungen, gute Tage) und Ausblick auf Ereignisse der nächsten Woche mit Phasenprognose.
+
+## 5b. Perimenopause vertieft
+
+- Schnellerfassung Hitzewallung / Nachtschweiß mit einem Tipp (Startbildschirm).
+- MRS (Menopause Rating Scale) alle 28 Tage: 11 Items 0–4, Gesamt 0–44, Subskalen somatisch / psychisch / urogenital,
+  Einordnung 0–4 / 5–8 / 9–15 / ≥ 16.
+- Auswertung: STRAW+10, Hitzewallungen pro Monat und nach Phase, MRS-Verlauf und Teilwerte; MRS in KI-Export und PDF.
+
+## 5c. Personalisierung
+
+- Die App ist für genau eine Person. Name und Geburtsdatum werden einmalig auf dem Gerät abgefragt und nur in der
+  verschlüsselten Datenbank gespeichert (nicht im Quellcode, da das Repository öffentlich ist).
+- Begrüßung nach Tageszeit, genaues Alter, Geburtstagsgruß. Der Name erscheint nicht in Exporten.
+
 ## 6. Notizen und Lebensumstände
 
 - Freie Notiz (Text oder Sprache), Original wird gespeichert.
@@ -158,6 +180,16 @@ und in Korrelationen geringer gewichtet. Später ist alles über den Kalender ed
 - Kontraste mindestens WCAG AA. Information nie nur über Farbe.
 - Keine Emojis, sondern Material Symbols (Rounded) und eigene Piktogramme.
 - Visualisierungen: Zyklusring, Heatmap, Zyklusvergleich, Verläufe, Vorher/Nachher. Antippbar.
+
+## 11a. Visualisierung und Bedienung
+
+- Kopfbereich im Farbverlauf der aktuellen Phase
+- Animierter, antippbarer Zyklusring mit Unruhe-Punkten und Tages-Kurzinfo
+- Wischbarer Wochenstreifen (Phase, Unruhe, Schlaf), Mini-Verläufe der letzten 14 Tage
+- Jahresübersicht als Kalender-Heatmap, Zyklen-Überlagerung mit Mittelwert
+- Haptisches Feedback, Übergangsanimationen, Predictive Back
+- Widgets: 4×1 (skalierbar), 2×2 Ring, 1×1 Unruhe-Schnelltaste
+- Seiten „Über“ (Version, Versionshinweise, Updates) und „Anleitung“ (kontextbezogen über das Fragezeichen)
 
 ## 12. Technik
 

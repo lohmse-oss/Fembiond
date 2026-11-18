@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 /** Arztbericht als PDF (A4), komplett lokal erzeugt. */
-class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult, private val age: Int?) {
+class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult, private val age: Int?, private val mrs: List<de.fembiond.app.domain.MrsRecord> = emptyList()) {
 
     private val doc = PdfDocument()
     private var page: PdfDocument.Page? = null
@@ -121,6 +121,15 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
                         cmp.medianCycle?.let { "Zyklus ${it.roundToInt()} T." },
                     ).joinToString(", "), indent = 8f)
                 }
+            }
+        }
+
+        val hot = input.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.HOT_TERMS && !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }
+        if (hot.isNotEmpty() || mrs.isNotEmpty()) {
+            heading("Perimenopause")
+            if (hot.isNotEmpty()) text("Hitzewallungen/Nachtschweiß im Zeitraum: ${hot.size}× an ${hot.map { it.date }.toSet().size} Tagen.")
+            mrs.sortedBy { it.date }.takeLast(6).forEach { m ->
+                text("MRS ${m.date.format(fmt)}: ${m.total}/44 (körperlich ${m.somatic}, psychisch ${m.psychological}, urogenital ${m.urogenital}) – ${de.fembiond.app.domain.Mrs.severity(m.total)}")
             }
         }
 

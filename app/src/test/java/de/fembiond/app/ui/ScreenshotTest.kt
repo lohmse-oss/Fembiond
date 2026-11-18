@@ -52,8 +52,9 @@ class ScreenshotTest {
         compose.onRoot().captureRoboImage("$dir/$name.png")
     }
 
-    @Config(qualifiers = "w412dp-h2200dp-xxhdpi")
+    @Config(qualifiers = "w412dp-h3600dp-xxhdpi")
     @Test fun home() = shot("01_heute") { HomeScreen(it, data, rememberNavController()) }
+    @Config(qualifiers = "w412dp-h3600dp-xxhdpi")
     @Test fun homeDark() = shot("01_heute_dunkel", dark = true) { HomeScreen(it, data, rememberNavController()) }
     @Test fun entry() = shot("02_eingabe") {
         EntryScreen(it, data, rememberNavController(), null, false, "Bin heute ziemlich müde, hab seit Mittag Kopfweh und so eine innere Unruhe, so Stärke drei. Ohrensausen")
@@ -75,6 +76,10 @@ class ScreenshotTest {
     @Test fun about() = shot("13_ueber") { de.fembiond.app.ui.screens.AboutScreen(data, rememberNavController()) }
     @Config(qualifiers = "w412dp-h2400dp-xxhdpi")
     @Test fun guide() = shot("14_anleitung") { de.fembiond.app.ui.screens.GuideScreen(rememberNavController(), "unrest") }
+    @Config(qualifiers = "w412dp-h2000dp-xxhdpi")
+    @Test fun weekly() = shot("15_wochenrueckblick") { de.fembiond.app.ui.screens.WeeklyReviewScreen(data.copy(today = java.time.LocalDate.of(2026, 11, 22)), rememberNavController()) }
+    @Config(qualifiers = "w412dp-h2600dp-xxhdpi")
+    @Test fun mrs() = shot("16_mrs") { de.fembiond.app.ui.screens.MrsScreen(it, data, rememberNavController()) }
     @Test fun more() = shot("09_mehr") { MoreScreen(data, rememberNavController()) }
     @Test fun export() = shot("10_export") { ExportScreen(it, data, rememberNavController()) }
     @Test fun settings() = shot("11_einstellungen") { SettingsScreen(it, data, rememberNavController()) }
@@ -97,7 +102,7 @@ class ScreenshotTest {
     @Test fun day() = shot("05_tag") { DayScreen(it, data, rememberNavController(), data.today) }
     @Test fun meds() = shot("07_medikation") { MedicationScreen(it, data, rememberNavController()) }
 
-    @Config(qualifiers = "w412dp-h5600dp-xxhdpi")
+    @Config(qualifiers = "w412dp-h7600dp-xxhdpi")
     @Test fun analysis() = shot("06_auswertung") { AnalysisScreen(data, rememberNavController()) }
 
     @Config(qualifiers = "w412dp-h5600dp-xxhdpi")

@@ -73,7 +73,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     fun agentText(): String {
         val notes = data.entries.filter { it.note.isNotBlank() && !it.time.toLocalDate().isBefore(from) && !it.time.toLocalDate().isAfter(to) }
             .map { it.time.toLocalDate() to it.note }.sortedBy { it.first }
-        return AgentExport.build(input, result, data.settings.age, data.intakes, notes, data.today)
+        return AgentExport.build(input, result, data.age, data.intakes, notes, data.today, data.mrs)
     }
 
     val createBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -93,7 +93,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     }
     val savePdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) scope.launch {
-            withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { PdfReport(input, result, data.settings.age).write(it) } }
+            withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { PdfReport(input, result, data.age, data.mrs).write(it) } }
             toast(context, "Bericht gespeichert")
         }
     }
@@ -124,7 +124,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                     scope.launch {
                         val file = withContext(Dispatchers.IO) {
                             val dir = File(context.cacheDir, "exports").apply { mkdirs() }
-                            File(dir, "fembiond-bericht-${data.today}.pdf").also { f -> f.outputStream().use { PdfReport(input, result, data.settings.age).write(it) } }
+                            File(dir, "fembiond-bericht-${data.today}.pdf").also { f -> f.outputStream().use { PdfReport(input, result, data.age, data.mrs).write(it) } }
                         }
                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
                         val send = Intent(Intent.ACTION_SEND).apply {

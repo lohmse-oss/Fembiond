@@ -64,9 +64,20 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         data.medications.filter { CycleEngine.intakeDue(it, data.summary, today) && (it.id to today) !in data.intakes }.forEach { m ->
             Reminders.notify(applicationContext, 1000 + m.id.toInt(), "Einnahme: ${m.name}", "Heute laut Schema fällig (${m.scheduleLabel()}). Zum Abhaken antippen.", Routes.HOME)
         }
+        val risks = de.fembiond.app.domain.StressForecast.upcoming(data.summary, data.events, data.episodes, data.occurrences, today, 1)
         data.events.filter { it.date == today.plusDays(1) }.forEach { e ->
-            Reminders.notify(applicationContext, 3000 + e.id.toInt(), "Morgen: ${e.displayName}",
-                "Plane Pausen ein und nimm dir mit, was dir sonst hilft. Unruhe kannst du direkt in der App festhalten.", Routes.EVENTS)
+            val risk = risks.firstOrNull { it.event.id == e.id }
+            val text = if (risk != null) "Gut vorbereiten: ${risk.factors.first()}. ${risk.tips.first()}."
+            else "Plane Pausen ein und nimm dir mit, was dir sonst hilft. Unruhe kannst du direkt in der App festhalten."
+            Reminders.notify(applicationContext, 3000 + e.id.toInt(), "Morgen: ${e.displayName}", text, Routes.EVENTS)
+        }
+        if (s.weeklyReview && de.fembiond.app.domain.WeeklyReviewBuilder.isReviewDay(today)) {
+            val review = de.fembiond.app.domain.WeeklyReviewBuilder.build(data.summary, data.occurrences, data.episodes, data.events, today)
+            val name = data.profile?.name?.let { "$it, dein" } ?: "Dein"
+            Reminders.notify(applicationContext, 4000, "$name Wochenrückblick", de.fembiond.app.domain.WeeklyReviewBuilder.shortText(review), Routes.WEEKLY)
+        }
+        if (data.mrsDue && data.occurrences.size > 3) {
+            Reminders.notify(applicationContext, 2001, "Menopause-Fragebogen", "Die MRS-Fragen sind wieder dran (11 kurze Fragen).", Routes.MRS)
         }
         if (data.gadDue && data.occurrences.size > 3) {
             Reminders.notify(applicationContext, 2000, "Kurzer Angst-Check", "Der GAD-7-Fragebogen ist wieder dran (7 Fragen).", Routes.GAD)

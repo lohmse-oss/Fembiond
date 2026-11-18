@@ -58,6 +58,7 @@ object SampleData {
             if ((info?.cycleDay ?: 99) <= 2) occ += TermOccurrence(t, "Krämpfe", Category.BODY, 3 + rnd.nextInt(2))
             if ((info?.cycleDay ?: 99) in 1..3 && rnd.nextDouble() < 0.5) occ += TermOccurrence(t, "Kopfschmerzen", Category.BODY, 3)
             if (rnd.nextDouble() < 0.15) occ += TermOccurrence(t, "Nachtschweiß", Category.PERIMENOPAUSE, 2)
+            if (rnd.nextDouble() < 0.25) occ += TermOccurrence(day.atTime(14, 0), "Hitzewallung", Category.PERIMENOPAUSE, 2 + rnd.nextInt(2))
             if (rnd.nextDouble() < 0.12) occ += TermOccurrence(t, "Arbeitsstress", Category.LIFE, null, Valence.BURDEN)
             if ((info?.cycleDay ?: 0) in 8..14 && rnd.nextDouble() < 0.5) occ += TermOccurrence(t, "ausgeglichen", Category.MIND, 4)
             val ev = events.firstOrNull { e -> val d0 = de.fembiond.app.domain.daysBetween(day, e.date); d0 in 0..3 && !e.date.isAfter(today) }
@@ -94,6 +95,13 @@ object SampleData {
             entries = entries,
             episodes = panics,
             events = events,
+            mrs = listOf(
+                de.fembiond.app.domain.MrsRecord(today.minusDays(84), listOf(2, 1, 2, 1, 2, 2, 2, 1, 0, 1, 1)),
+                de.fembiond.app.domain.MrsRecord(today.minusDays(56), listOf(2, 1, 3, 2, 2, 3, 2, 1, 0, 1, 1)),
+                de.fembiond.app.domain.MrsRecord(today.minusDays(28), listOf(3, 1, 2, 1, 2, 2, 2, 1, 0, 1, 2)),
+                de.fembiond.app.domain.MrsRecord(today.minusDays(2), listOf(2, 1, 2, 1, 1, 2, 1, 1, 0, 1, 1)),
+            ),
+            profile = de.fembiond.app.domain.Profile("Mia", LocalDate.of(1986, 3, 14)),
             gad = listOf(GadRecord(today.minusDays(60), 11), GadRecord(today.minusDays(30), 9), GadRecord(today.minusDays(5), 8)),
             terms = terms,
             summary = summary0,
