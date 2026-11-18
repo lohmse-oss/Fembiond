@@ -56,8 +56,8 @@ class TermParserTest {
 
     @Test
     fun unknownWordsAreOffered() {
-        val r = parser.parse("Heute Ohrensausen und gereizt")
-        assertTrue(r.unknown.contains("ohrensausen"))
+        val r = parser.parse("Heute Zahnfleischbluten und gereizt")
+        assertTrue(r.unknown.contains("zahnfleischbluten"))
         assertFalse(r.unknown.contains("heute"))
     }
 

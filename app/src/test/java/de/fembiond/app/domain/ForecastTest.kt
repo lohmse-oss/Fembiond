@@ -76,3 +76,18 @@ class ForecastTest {
         assertEquals(1, p.daysUntilBirthday(LocalDate.of(2026, 6, 14)))
     }
 }
+
+class PeriStatsTest {
+    private val today = java.time.LocalDate.of(2026, 11, 18)
+    private fun o(d: Long, t: String, c: Category) = TermOccurrence(today.minusDays(d).atTime(9, 0), t, c)
+
+    @Test
+    fun onlySymptomsWithEntriesAndResearchDefaults() {
+        assertEquals(PeriStats.DEFAULT_QUICK, PeriStats.quickTerms(emptyList(), today))
+        val occ = listOf(o(1, "Gelenkschmerzen", Category.BODY), o(2, "Gelenkschmerzen", Category.BODY), o(1, "Frühes Erwachen", Category.SLEEP_ENERGY), o(1, "Krämpfe", Category.BODY))
+        val stats = PeriStats.symptomStats(occ, today.minusDays(30), today)
+        assertEquals(listOf("Gelenkschmerzen", "Frühes Erwachen"), stats.map { it.term })
+        assertEquals("Schmerzen", stats.first().group)
+        assertEquals("Gelenkschmerzen", PeriStats.quickTerms(occ, today).first())
+    }
+}

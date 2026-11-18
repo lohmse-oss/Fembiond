@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.NightsStay
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material3.Card
@@ -122,7 +122,8 @@ fun TrendsCard(data: AppData, nav: NavController) {
     }
     val sleep = scale(ScaleTerms.SLEEP_QUALITY)
     val energy = scale(ScaleTerms.ENERGY)
-    val hot = PeriStats.dailyCounts(data.occurrences, PeriStats.HOT_TERMS, today, days).map { it.toDouble() }
+    val periTerms = data.occurrences.filter { it.category == Category.PERIMENOPAUSE }.map { it.term }.toSet()
+    val hot = PeriStats.dailyCounts(data.occurrences, periTerms, today, days).map { it.toDouble() }
     if (unrest.all { it == 0.0 } && sleep.all { it == null } && energy.all { it == null } && hot.all { it == 0.0 }) return
     SectionCard(title = "Letzte 14 Tage", icon = Icons.Rounded.ShowChart) {
         @Composable
@@ -138,40 +139,44 @@ fun TrendsCard(data: AppData, nav: NavController) {
         row("Unruhe", "${unrest.count { it > 0 }} Tage") { Sparkline(unrest, 5.0, unrestColor(3), Modifier.fillMaxWidth(), bars = true) }
         if (sleep.any { it != null }) row("Schlaf", "Ø " + de1(sleep.filterNotNull().average())) { Sparkline(sleep, 5.0, MaterialTheme.colorScheme.secondary, Modifier.fillMaxWidth()) }
         if (energy.any { it != null }) row("Energie", "Ø " + de1(energy.filterNotNull().average())) { Sparkline(energy, 5.0, MaterialTheme.colorScheme.tertiary, Modifier.fillMaxWidth()) }
-        if (hot.any { it > 0 }) row("Hitze", "${hot.sum().toInt()}×") { Sparkline(hot, (hot.maxOrNull() ?: 1.0).coerceAtLeast(3.0), LocalPhaseColors.current.follicular, Modifier.fillMaxWidth(), bars = true) }
+        if (hot.any { it > 0 }) row("Perimeno.", "${hot.sum().toInt()}×") { Sparkline(hot, (hot.maxOrNull() ?: 1.0).coerceAtLeast(3.0), LocalPhaseColors.current.follicular, Modifier.fillMaxWidth(), bars = true) }
         TextButton(onClick = { nav.navigate(Routes.ANALYSIS) }) { Text("Zur Auswertung") }
     }
 }
 
-/** Perimenopause: Hitzewallung / Nachtschweiß mit einem Tipp erfassen, MRS-Fragebogen. */
+/** Perimenopause: eigene häufige Beschwerden mit einem Tipp erfassen, MRS-Fragebogen. */
 @Composable
 fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val today = data.today
-    val hotToday = PeriStats.countOn(data.occurrences, "Hitzewallung", today)
-    val sweatToday = PeriStats.countOn(data.occurrences, "Nachtschweiß", today)
+    val quick = PeriStats.quickTerms(data.occurrences, today)
+    val ownCount = PeriStats.symptomStats(data.occurrences, today.minusDays(120), today).size
     val last = data.mrs.maxByOrNull { it.date }
+    fun categoryOf(t: String): Category =
+        data.terms.firstOrNull { it.label == t && it.category.isDaily }?.category
+            ?: de.fembiond.app.domain.Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category
+            ?: Category.PERIMENOPAUSE
     SectionCard(title = "Perimenopause", icon = Icons.Rounded.LocalFireDepartment) {
-        HintText("Mit einem Tipp erfassen, sobald es auftritt – die Uhrzeit wird automatisch gespeichert.")
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            FilledTonalButton(onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection("Hitzewallung", Category.PERIMENOPAUSE)), "quick") }
-                android.widget.Toast.makeText(context, "Hitzewallung erfasst", android.widget.Toast.LENGTH_SHORT).show()
-            }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Rounded.LocalFireDepartment, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text("Hitze" + if (hotToday > 0) " ($hotToday)" else "", maxLines = 1)
-            }
-            FilledTonalButton(onClick = {
-                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection("Nachtschweiß", Category.PERIMENOPAUSE)), "quick") }
-                android.widget.Toast.makeText(context, "Nachtschweiß erfasst", android.widget.Toast.LENGTH_SHORT).show()
-            }, modifier = Modifier.weight(1f)) {
-                Icon(Icons.Rounded.NightsStay, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
-                Text("Nachtschweiß" + if (sweatToday > 0) " ($sweatToday)" else "", maxLines = 1)
+        HintText(
+            if (ownCount > 0) "Deine häufigsten Beschwerden – mit einem Tipp erfassen, die Uhrzeit wird gespeichert."
+            else "Häufige Beschwerden der Perimenopause laut aktueller Forschung – mit einem Tipp erfassen. Danach erscheinen hier deine eigenen."
+        )
+        ChipFlow {
+            quick.forEach { t ->
+                val n = PeriStats.countOn(data.occurrences, t, today)
+                androidx.compose.material3.AssistChip(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t))), "quick") }
+                        android.widget.Toast.makeText(context, "„$t“ erfasst", android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                    label = { Text(if (n > 0) "$t ($n)" else t) },
+                    leadingIcon = { Icon(Icons.Rounded.Add, null, Modifier.size(16.dp)) },
+                )
             }
         }
+        TextButton(onClick = { nav.navigate(Routes.entry()) }) { Text("Weitere Beschwerden eintragen") }
         if (last != null) HintText("MRS zuletzt ${last.date.short()}: ${last.total} Punkte – ${Mrs.severity(last.total)}")
         if (data.mrsDue) {
             Text("Menopause-Fragebogen (MRS) ist wieder dran – 11 kurze Fragen.", style = MaterialTheme.typography.bodyMedium)

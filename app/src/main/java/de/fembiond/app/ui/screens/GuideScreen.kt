@@ -88,10 +88,10 @@ object Guide {
 - Wichtig: An ruhigen Tagen kurz eintragen (z. B. „ausgeglichen“) – sonst fehlt der Vergleich „danach“.
 """.trimIndent()),
         GuideSection("peri", "Perimenopause & MRS", Icons.Rounded.LocalFireDepartment, """
-- Auf dem Startbildschirm erfasst du **Hitzewallungen** und **Nachtschweiß** mit einem Tipp, die Uhrzeit wird automatisch gespeichert.
-- Der **MRS-Fragebogen** (Menopause Rating Scale) fragt alle 4 Wochen 11 Beschwerden ab (0 = keine bis 4 = sehr stark). Er ergibt einen Gesamtwert (0–44) und drei Teilwerte: körperlich, psychisch, urogenital.
-- Einordnung des Gesamtwerts: 0–4 keine bis gering, 5–8 leicht, 9–15 mittel, ab 16 stark.
-- In der Auswertung findest du unter **Perimenopause** die STRAW-Einordnung, Hitzewallungen pro Monat und nach Phase sowie den MRS-Verlauf.
+- Die App orientiert sich an der **aktuellen Forschung** (u. a. SWAN-Studie, Lancet-Serie zur Menopause 2024): In der Perimenopause stehen oft **Schlafprobleme** (z. B. frühes Erwachen), **Reizbarkeit und Wut**, **Stimmungsschwankungen**, **neue Ängste**, **Konzentrations- und Gedächtnisprobleme** („Brain Fog“, Wortfindung), **Erschöpfung**, **Gelenk- und Muskelschmerzen**, **Herzklopfen**, veränderte **Kopfschmerzen/Migräne** und **Blutung** im Vordergrund – Hitzewallungen sind nur ein Teil davon.
+- Auf dem Startbildschirm erfasst du deine **häufigsten Beschwerden mit einem Tipp**. Anfangs schlägt die App typische Beschwerden vor, danach erscheinen deine eigenen.
+- In der Auswertung zeigt der Bereich **Perimenopause** nur Beschwerden, zu denen es Einträge gibt – mit Anzahl der Tage, häufigster Zyklusphase und Verlauf pro Monat. Dazu die Zyklus-Einordnung nach STRAW+10.
+- Der **MRS-Fragebogen** (Menopause Rating Scale) fragt alle 4 Wochen 11 Beschwerden ab (0 = keine bis 4 = sehr stark): Gesamtwert 0–44 mit Teilwerten körperlich, psychisch, urogenital. Einordnung: 0–4 keine bis gering, 5–8 leicht, 9–15 mittel, ab 16 stark.
 """.trimIndent()),
         GuideSection("entry", "Befinden eintragen – Text & Sprache", Icons.Rounded.Mic, """
 - Tippe auf **Wie geht es dir gerade?** und schreibe oder sprich frei, z. B. „ziemlich müde, Kopfweh, innere Unruhe Stärke 3“.
@@ -144,6 +144,7 @@ object Guide {
 - **Jahresübersicht**: ein Kästchen pro Tag der letzten 12 Monate, gefärbt nach Unruhe; Periodentage umrandet.
 - **Zyklen übereinander**: die letzten Zyklen nach Zyklustag übereinandergelegt (Unruhe, Schlaf, Energie oder Hitzewallungen). Die kräftige Linie ist der Mittelwert.
 - **Zusammenhänge** sind Hinweise, keine Beweise für Ursachen.
+- Es erscheinen nur Auswertungen, zu denen es Einträge gibt. Je mehr du erfasst, desto mehr Bereiche kommen dazu.
 """.trimIndent()),
         GuideSection("terms", "Begriffe verwalten", Icons.AutoMirrored.Rounded.Label, """
 - Unter **Mehr → Begriffe verwalten** kannst du Begriffe umbenennen, einer anderen Kategorie zuordnen oder ausblenden.

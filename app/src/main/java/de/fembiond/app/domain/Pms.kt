@@ -43,18 +43,19 @@ data class PmsResult(
  * Keine Diagnose.
  */
 object Pms {
+    // DSM-5 (PMDS) / ACOG: affektive Kernsymptome und weitere
     val AFFECTIVE = setOf(
-        "gereizt", "traurig", "ängstlich", "angespannt", "innere Unruhe", "Stimmungsschwankungen", "überfordert",
+        "gereizt", "Wutausbrüche", "traurig", "ängstlich", "angespannt", "innere Unruhe", "Stimmungsschwankungen", "überfordert",
         "sensibel", "Rückzug", Analytics.UNREST_LABEL,
     )
-    val CORE_AFFECTIVE = setOf("gereizt", "traurig", "ängstlich", "angespannt", "innere Unruhe", "Stimmungsschwankungen", Analytics.UNREST_LABEL)
+    val CORE_AFFECTIVE = setOf("gereizt", "Wutausbrüche", "traurig", "ängstlich", "angespannt", "innere Unruhe", "Stimmungsschwankungen", Analytics.UNREST_LABEL)
     val SOMATIC = setOf(
         "Brustspannen", "Blähungen", "Kopfschmerzen", "Migräne", "Wassereinlagerungen", "Gelenkschmerzen",
-        "Rückenschmerzen", "Hautunreinheiten",
+        "Rückenschmerzen", "Hautunreinheiten", "Gewichtszunahme",
     )
     val OTHER = setOf(
-        "müde", "erschöpft", "antriebslos", "konzentrationsschwach", "Heißhunger",
-        "Einschlafprobleme", "Durchschlafprobleme", "schlecht geschlafen", "Libido gering",
+        "müde", "erschöpft", "antriebslos", "konzentrationsschwach", "vergesslich", "Heißhunger",
+        "Einschlafprobleme", "Durchschlafprobleme", "Frühes Erwachen", "schlecht geschlafen", "Libido gering",
     )
     const val MIN_DAYS = 2
 

@@ -124,10 +124,10 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
             }
         }
 
-        val hot = input.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.HOT_TERMS && !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }
-        if (hot.isNotEmpty() || mrs.isNotEmpty()) {
+        val periStats = de.fembiond.app.domain.PeriStats.symptomStats(input.occurrences, input.from, input.to)
+        if (periStats.isNotEmpty() || mrs.isNotEmpty()) {
             heading("Perimenopause")
-            if (hot.isNotEmpty()) text("Hitzewallungen/Nachtschweiß im Zeitraum: ${hot.size}× an ${hot.map { it.date }.toSet().size} Tagen.")
+            if (periStats.isNotEmpty()) text("Erfasste typische Beschwerden (Tage im Zeitraum): " + periStats.take(10).joinToString { "${it.term} (${it.days})" } + ".")
             mrs.sortedBy { it.date }.takeLast(6).forEach { m ->
                 text("MRS ${m.date.format(fmt)}: ${m.total}/44 (körperlich ${m.somatic}, psychisch ${m.psychological}, urogenital ${m.urogenital}) – ${de.fembiond.app.domain.Mrs.severity(m.total)}")
             }
