@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Cake
 import androidx.compose.material.icons.rounded.Face
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material3.IconButton
 import androidx.compose.ui.draw.clip
@@ -232,6 +233,18 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
 
         // Belastungshinweise für die nächsten 7 Tage
         StressForecast.upcoming(s, data.events, data.episodes, data.occurrences, today).forEach { r -> StressHintCard(r, data, nav) }
+
+        // PMS-Hinweis in den Tagen vor der Periode
+        if (current != null && !current.inPeriod && current.prediction.overdueDays == 0 && daysBetween(today, current.prediction.from) in 0..5) {
+            val pms = remember(data) { de.fembiond.app.domain.Pms.analyze(s, data.occurrences, data.episodes, today) }
+            if (pms.typical > 0 && pms.typicalSymptoms.isNotEmpty()) {
+                SectionCard(title = "Die Tage vor der Periode", icon = Icons.Rounded.Psychology, container = MaterialTheme.colorScheme.secondaryContainer) {
+                    Text("In dieser Zeit traten bei dir bisher oft auf: ${pms.typicalSymptoms.joinToString()}.", style = MaterialTheme.typography.bodyMedium)
+                    HintText("Sei nachsichtig mit dir: etwas mehr Ruhe, Bewegung an der frischen Luft und weniger Termine können helfen. Nach Beginn der Periode klingt es meist wieder ab.")
+                    TextButton(onClick = { nav.navigate(Routes.ANALYSIS) }) { Text("PMS-Auswertung") }
+                }
+            }
+        }
 
         // Wochenrückblick (Sonntag und Montag)
         if (data.settings.weeklyReview && (today.dayOfWeek == java.time.DayOfWeek.SUNDAY || today.dayOfWeek == java.time.DayOfWeek.MONDAY)) {

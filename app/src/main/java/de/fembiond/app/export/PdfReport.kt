@@ -133,6 +133,14 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
             }
         }
 
+        val pms = de.fembiond.app.domain.Pms.analyze(input.summary, input.occurrences, input.episodes, input.to, input.from, input.to)
+        heading("PMS-Einschätzung (ACOG-Kriterien)")
+        text(pms.verdict)
+        pms.pmddHint?.let { text(it) }
+        pms.cycles.filter { it.assessable }.takeLast(6).forEach { c ->
+            text("• Periode ab ${c.periodStart.format(fmt)}: Stimmung ${c.affective.joinToString().ifEmpty { "–" }}; Körper ${c.somatic.joinToString().ifEmpty { "–" }}" + if (c.pmsTypical) " → PMS-typisch" else "", small)
+        }
+
         heading("Wichtigste Beobachtungen")
         if (r.insights.isEmpty()) text("Noch zu wenige Daten für automatische Aussagen.")
         r.insights.forEach { text("• $it") }

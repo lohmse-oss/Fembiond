@@ -24,6 +24,7 @@ data class CycleBar(
     val deviation: Deviation?,
     val medicated: Boolean,
     val approximate: Boolean,
+    val periodEstimated: Boolean = false,
 )
 
 data class CycleStats(
@@ -182,7 +183,8 @@ object Analytics {
         val scaleOcc = allOcc.filter { it.term == ScaleTerms.SLEEP_QUALITY || it.term == ScaleTerms.ENERGY }
         val occ = allOcc.filter { it.term != ScaleTerms.SLEEP_QUALITY && it.term != ScaleTerms.ENERGY }
             .filter { it.category in input.categories && (input.terms.isEmpty() || it.term in input.terms) }
-        val panics = input.episodes.filter { inRange(it.date) }
+        // Unruhe-Episoden gehören zur Kategorie „Stimmung & Geist“ und folgen deren Filter
+        val panics = if (Category.MIND in input.categories) input.episodes.filter { inRange(it.date) } else emptyList()
 
         // Tage mit Einträgen und deren Gewicht (nachgetragen = halbes Gewicht)
         val dayWeight = HashMap<LocalDate, Double>()
@@ -202,7 +204,7 @@ object Analytics {
             val prev = map[o.date]
             map[o.date] = maxOf(prev?.first ?: 0.0, w) to maxOf(prev?.second ?: 0.0, score)
         }
-        if (input.categories.contains(Category.PANIC_SYMPTOM) || input.terms.isEmpty()) {
+        if (Category.MIND in input.categories) {
             fun series(list: List<Episode>): HashMap<LocalDate, Pair<Double, Double>> {
                 val map = HashMap<LocalDate, Pair<Double, Double>>()
                 for (p in list) {
@@ -260,7 +262,7 @@ object Analytics {
 
     private fun cycleStats(s: CycleSummary, from: LocalDate, to: LocalDate): CycleStats {
         val inRange = s.cycles.filter { c -> !c.start.isAfter(to) && (c.nextStart == null || c.nextStart.isAfter(from)) }
-        val bars = inRange.map { CycleBar(it.start, it.length, it.periodLength, it.deviation, it.medicated, it.approximate) }
+        val bars = inRange.map { CycleBar(it.start, it.length, it.periodLength, it.deviation, it.medicated, it.approximate, it.periodEstimated) }
         val lengths = inRange.mapNotNull { it.length }
         val natural = inRange.filter { it.isComplete && !it.medicated }.map { it.length!! }
         val basis = natural.ifEmpty { lengths }

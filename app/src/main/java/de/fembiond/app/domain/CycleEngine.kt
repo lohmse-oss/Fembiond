@@ -22,6 +22,8 @@ data class Cycle(
     val approximate: Boolean,
     val backfilled: Boolean,
     val deviation: Deviation? = null,
+    /** Periodenlänge geschätzt (kein Ende eingetragen). */
+    val periodEstimated: Boolean = false,
 ) {
     val length: Int? get() = nextStart?.let { daysBetween(start, it) }
     val isComplete: Boolean get() = nextStart != null
@@ -124,6 +126,7 @@ object CycleEngine {
                 medicated = medications.any { m -> m.overlaps(p.start, lastDay) },
                 approximate = p.approximate,
                 backfilled = p.backfilled,
+                periodEstimated = p.end == null,
             )
         }
 

@@ -33,6 +33,7 @@ object Lexicon {
         e("vergesslich", Category.MIND, "vergesslichkeit", "gedächtnisprobleme", "vergessen"),
         e("antriebslos", Category.MIND, "lustlos", "keine lust", "unmotiviert", "antriebslosigkeit"),
         e("sensibel", Category.MIND, "empfindlich", "verletzlich"),
+        e("Rückzug", Category.MIND, "sozialer rückzug", "zurückgezogen", "will niemanden sehen", "will meine ruhe", "keine lust auf menschen"),
         e("Libido gering", Category.MIND, "keine lust auf sex", "wenig libido", "libido niedrig"),
         e("Libido hoch", Category.MIND, "viel lust auf sex", "libido stark"),
 

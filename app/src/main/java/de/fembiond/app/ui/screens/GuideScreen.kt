@@ -20,6 +20,7 @@ import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -79,6 +80,13 @@ object Guide {
 - Dazu siehst du die Ereignisse der nächsten Woche mit voraussichtlicher Zyklusphase.
 - Der Rückblick erscheint sonntags und montags auf dem Startbildschirm und als Benachrichtigung. Abschaltbar unter Einstellungen.
 """.trimIndent()),
+        GuideSection("pms", "PMS – prämenstruelle Beschwerden", Icons.Rounded.Psychology, """
+- Die App prüft nach den Kriterien der amerikanischen Fachgesellschaft für Gynäkologie (ACOG), ob in den **5 Tagen vor der Periode** Beschwerden der **Stimmung** (z. B. gereizt, traurig, ängstlich, innere Unruhe, Stimmungsschwankungen, Rückzug) **und** des **Körpers** (z. B. Brustspannen, Blähungen, Kopfschmerzen, Wassereinlagerungen) auftreten, die an **Tag 4–10 nach Beginn der Periode wieder abklingen**.
+- Zeigt sich das in **3 Zyklen hintereinander**, gilt es als PMS-typisch. Bei sehr vielen, deutlichen Beschwerden in mehreren Zyklen weist die App auf eine mögliche PMDS hin – das sollte ärztlich abgeklärt werden.
+- Unter „Details“ siehst du für jede Periode, welche Beschwerden davor auftraten und danach abklangen.
+- In den Tagen vor der erwarteten Periode erinnert dich der Startbildschirm an deine typischen Beschwerden.
+- Wichtig: An ruhigen Tagen kurz eintragen (z. B. „ausgeglichen“) – sonst fehlt der Vergleich „danach“.
+""".trimIndent()),
         GuideSection("peri", "Perimenopause & MRS", Icons.Rounded.LocalFireDepartment, """
 - Auf dem Startbildschirm erfasst du **Hitzewallungen** und **Nachtschweiß** mit einem Tipp, die Uhrzeit wird automatisch gespeichert.
 - Der **MRS-Fragebogen** (Menopause Rating Scale) fragt alle 4 Wochen 11 Beschwerden ab (0 = keine bis 4 = sehr stark). Er ergibt einen Gesamtwert (0–44) und drei Teilwerte: körperlich, psychisch, urogenital.
@@ -126,7 +134,7 @@ object Guide {
 - Tag antippen für Details, Löschen, Nachtragen und um Periodenbeginn oder -ende zu korrigieren.
 """.trimIndent()),
         GuideSection("analysis", "Auswertung verstehen", Icons.Rounded.Analytics, """
-- Oben wählst du **Zeitraum** (z. B. 6 Monate oder „unter Progesteron“) und **Kategorien**.
+- Oben wählst du **Zeitraum** (z. B. 6 Monate oder „unter Progesteron“) und **Bereiche** (Geist, Körper, Perimenopause, Schlaf, Leben, Medikation). Mit einem Bereich gefiltert, zeigt die Auswertung nur die passenden Karten – „Alle zeigen“ hebt den Filter auf.
 - **Erkenntnisse** fassen auffällige Muster in Sätzen zusammen – mit Hinweis, wenn es noch zu wenige Daten gibt.
 - **Zykluslänge**: Balken pro Zyklus (Beere = Periode). Warnsymbol = deutliche Abweichung, Kapsel = unter Medikation.
 - **Wann tritt was auf?** (Heatmap): je dunkler, desto häufiger tritt ein Begriff an diesem Zyklustag auf. Feld antippen für Details.
