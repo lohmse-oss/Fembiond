@@ -124,13 +124,21 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
             }
         }
 
-        val hot = input.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.HOT_TERMS && !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }
-        if (hot.isNotEmpty() || mrs.isNotEmpty()) {
+        val periStats = de.fembiond.app.domain.PeriStats.symptomStats(input.occurrences, input.from, input.to)
+        if (periStats.isNotEmpty() || mrs.isNotEmpty()) {
             heading("Perimenopause")
-            if (hot.isNotEmpty()) text("Hitzewallungen/Nachtschweiß im Zeitraum: ${hot.size}× an ${hot.map { it.date }.toSet().size} Tagen.")
+            if (periStats.isNotEmpty()) text("Erfasste typische Beschwerden (Tage im Zeitraum): " + periStats.take(10).joinToString { "${it.term} (${it.days})" } + ".")
             mrs.sortedBy { it.date }.takeLast(6).forEach { m ->
                 text("MRS ${m.date.format(fmt)}: ${m.total}/44 (körperlich ${m.somatic}, psychisch ${m.psychological}, urogenital ${m.urogenital}) – ${de.fembiond.app.domain.Mrs.severity(m.total)}")
             }
+        }
+
+        val pms = de.fembiond.app.domain.Pms.analyze(input.summary, input.occurrences, input.episodes, input.to, input.from, input.to)
+        heading("PMS-Einschätzung (ACOG-Kriterien)")
+        text(pms.verdict)
+        pms.pmddHint?.let { text(it) }
+        pms.cycles.filter { it.assessable }.takeLast(6).forEach { c ->
+            text("• Periode ab ${c.periodStart.format(fmt)}: Stimmung ${c.affective.joinToString().ifEmpty { "–" }}; Körper ${c.somatic.joinToString().ifEmpty { "–" }}" + if (c.pmsTypical) " → PMS-typisch" else "", small)
         }
 
         heading("Wichtigste Beobachtungen")
@@ -183,7 +191,7 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
         val drsp = r.drsp.take(10)
         if (drsp.isNotEmpty()) {
             heading("Vor der Periode vs. danach (DRSP-Methode)")
-            text("Mittlere Stärke 0–5: 7 Tage vor der Periode gegenüber Zyklustag 4–10. * = mind. 30 % stärker bei 2+ Zyklen.", small)
+            text("Mittlere Stärke 0–5: 7 Tage vor jeder Periode gegenüber Tag 4–10 danach. * = mind. 30 % stärker bei 2+ Perioden.", small)
             drsp.forEach { d ->
                 text("${if (d.significant) "* " else "  "}${d.term}: ${de1(d.premenstrual)} vs. ${de1(d.postmenstrual)}" +
                     (d.changePercent?.let { " (${if (it >= 0) "+" else ""}${it.roundToInt()} %)" } ?: " (nur prämenstruell)"))

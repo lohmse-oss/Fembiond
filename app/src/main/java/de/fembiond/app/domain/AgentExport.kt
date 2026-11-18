@@ -131,6 +131,28 @@ object AgentExport {
                     })
                 }
             }
+            Pms.analyze(s, input.occurrences, input.episodes, today, input.from, input.to).let { pms ->
+                putJsonObject("pms_assessment_acog") {
+                    put("cycles_assessable", pms.assessed); put("cycles_pms_typical", pms.typical); put("cycles_pmdd_like", pms.pmddLike)
+                    put("verdict", pms.verdict); pms.pmddHint?.let { put("pmdd_hint", it) }
+                    putJsonArray("per_period") {
+                        pms.cycles.forEach { c ->
+                            add(buildJsonObject {
+                                put("period_start", c.periodStart.toString()); put("assessable", c.assessable)
+                                c.reason?.let { put("reason", it) }
+                                put("affective_relieved", JsonArray(c.affective.map(::JsonPrimitive)))
+                                put("somatic_relieved", JsonArray(c.somatic.map(::JsonPrimitive)))
+                                put("pms_typical", c.pmsTypical)
+                            })
+                        }
+                    }
+                    putJsonArray("symptoms_pre5_vs_day4to10") {
+                        pms.symptoms.take(12).forEach { sym ->
+                            add(buildJsonObject { put("term", sym.term); put("group", sym.group); put("pre_rate", round1(sym.preRate)); put("post_rate", round1(sym.postRate)) })
+                        }
+                    }
+                }
+            }
             putJsonArray("mrs_menopause_rating_scale") {
                 mrs.filter { !it.date.isBefore(input.from) }.forEach { m ->
                     add(buildJsonObject {
@@ -217,6 +239,7 @@ object AgentExport {
             appendLine("- `backfilled` = nachträglich aus Notizen erfasst (geringer gewichtet), `approximate` = Datum ungefähr.")
             appendLine("- Zyklen mit `medicated: true` lagen unter Medikation (z. B. zyklisches Progesteron mit Abbruchblutung) und sind nicht in der natürlichen Grundlinie enthalten.")
             appendLine("- STRAW+10: EARLY = wiederholt ≥ 7 Tage Unterschied zwischen aufeinanderfolgenden Zyklen; LATE = Blutungspause ≥ 60 Tage.")
+            appendLine("- PMS-Einschätzung nach ACOG: ≥1 affektives und ≥1 körperliches Symptom in den 5 Tagen vor der Periode, die an Tag 4–10 abklingen, in 3 aufeinanderfolgenden Zyklen; PMDS-Hinweis bei ≥5 Symptomen inkl. Kernsymptom in ≥2 Zyklen.")
             appendLine("- Vergleich vor/nach der Periode nach DRSP-Methode: 7 Tage vor der Periode gegenüber Zyklustag 4–10; ≥ 30 % Zunahme gilt als relevant.")
             appendLine("- Die App stellt keine Diagnosen. Bitte Einschätzungen vorsichtig formulieren und auf ärztliche Abklärung verweisen.")
             appendLine()
@@ -232,7 +255,7 @@ object AgentExport {
             appendLine("## Mögliche Fragen an dich")
             appendLine("1. Welche Muster zwischen Zyklusphase und Unruhe (inkl. Steigerung bis zur Panik) erkennst du, und wie robust sind sie angesichts der Datenmenge?")
             appendLine("2. Wie verläuft die Unruhe vor Ereignissen, und welche Ereignisarten oder Zyklusphasen sind besonders belastend? Welche Strategien haben geholfen?")
-            appendLine("3. Passen die Zyklusverläufe zu einer beginnenden Perimenopause?")
+            appendLine("3. Passen die Beschwerden zu PMS oder PMDS, und passen die Zyklusverläufe zu einer beginnenden Perimenopause? Wie lassen sich beide auseinanderhalten?")
             appendLine("4. Was fällt im Vergleich vor und unter Medikation auf?")
             appendLine("5. Welche Punkte sollten beim nächsten Arzt- oder Therapietermin angesprochen werden?")
             appendLine()

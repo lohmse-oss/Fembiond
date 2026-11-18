@@ -66,6 +66,10 @@ import de.fembiond.app.ui.CycleOverlayChart
 import de.fembiond.app.ui.overlaySeries
 import androidx.compose.material.icons.rounded.CalendarViewMonth
 import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.RemoveCircleOutline
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import de.fembiond.app.domain.UnrestLevel
 import java.time.LocalDate
@@ -116,16 +120,30 @@ fun RangeAndFilter(
         }
     }
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        val daily = Category.entries.filter { it.isDaily && it != Category.BLEEDING }
+        val daily = FILTER_CATEGORIES
         FilterChip(categories.containsAll(daily), { onCategories(Category.entries.toSet()) }, { Text("Alle") })
         daily.forEach { c ->
             val on = c in categories && !categories.containsAll(daily)
             FilterChip(on, {
-                onCategories(if (categories.containsAll(daily)) setOf(c, Category.PANIC_SYMPTOM) else if (on) (categories - c).ifEmpty { Category.entries.toSet() } else categories + c)
+                onCategories(if (categories.containsAll(daily)) setOf(c) else if (on) (categories - c).ifEmpty { Category.entries.toSet() } else categories + c)
             }, { Text(c.shortLabel) }, leadingIcon = { Icon(c.icon(), null, Modifier.size(16.dp)) })
         }
     }
+    if (!categories.containsAll(FILTER_CATEGORIES)) {
+        Row(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.secondaryContainer).padding(start = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "Filter: " + FILTER_CATEGORIES.filter { it in categories }.joinToString { it.shortLabel } + " – es werden nur passende Auswertungen gezeigt.",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.weight(1f),
+            )
+            androidx.compose.material3.TextButton(onClick = { onCategories(Category.entries.toSet()) }) { Text("Alle zeigen") }
+        }
+    }
 }
+
+val FILTER_CATEGORIES = Category.entries.filter { it.isDaily && it != Category.BLEEDING }
 
 @Composable
 fun AnticipationChart(points: List<de.fembiond.app.domain.AnticipationPoint>) {
@@ -146,56 +164,216 @@ fun AnticipationChart(points: List<de.fembiond.app.domain.AnticipationPoint>) {
     }
 }
 
-/** Zyklen übereinandergelegt – wiederkehrende Muster werden sichtbar. */
 @Composable
-fun OverlayCard(data: AppData) {
-    var metric by remember { mutableStateOf(0) }
-    val metrics = listOf("Unruhe", "Schlaf", "Energie", "Hitzewallungen")
+fun LegendSwatch(color: androidx.compose.ui.graphics.Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(width = 16.dp, height = 10.dp).clip(RoundedCornerShape(5.dp)).background(color))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+/** PMS-Einschätzung nach ACOG-Kriterien, mit Zyklus-Übersicht und typischen Beschwerden. */
+@Composable
+fun PmsCard(pms: de.fembiond.app.domain.PmsResult) {
+    val pc = LocalPhaseColors.current
+    var showCycles by remember { mutableStateOf(false) }
+    SectionCard(title = "PMS – prämenstruelle Beschwerden", icon = Icons.Rounded.Psychology) {
+        HintText("Geprüft wird, ob in den 5 Tagen vor der Periode Beschwerden der Stimmung und des Körpers auftreten, die nach der Periode (Tag 4–10) wieder abklingen. Für PMS gilt das als typisch, wenn es sich in 3 Zyklen hintereinander zeigt.")
+        Text(pms.verdict, style = MaterialTheme.typography.bodyMedium,
+            color = if (pms.typical > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+        pms.pmddHint?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${pms.assessed} von ${pms.cycles.size} Zyklen auswertbar · ${pms.typical}× PMS-typisch",
+                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            androidx.compose.material3.TextButton(onClick = { showCycles = !showCycles }) { Text(if (showCycles) "ausblenden" else "Details") }
+        }
+        androidx.compose.animation.AnimatedVisibility(showCycles) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                pms.cycles.sortedByDescending { it.periodStart }.forEach { c ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            when { !c.assessable -> Icons.Rounded.RemoveCircleOutline; c.pmsTypical -> Icons.Rounded.CheckCircle; else -> Icons.Rounded.RadioButtonUnchecked }, null,
+                            tint = if (c.pmsTypical) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 2.dp).size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("Periode ab ${c.periodStart.short()}" + if (c.medicated) " (Zyklus davor unter Medikation)" else "", style = MaterialTheme.typography.bodyMedium)
+                            if (!c.assessable) HintText(c.reason ?: "")
+                            else HintText(listOfNotNull(
+                                "Stimmung: " + (c.affective.joinToString().ifEmpty { "–" }),
+                                "Körper: " + (c.somatic.joinToString().ifEmpty { "–" }),
+                                c.other.takeIf { it.isNotEmpty() }?.joinToString(prefix = "Weitere: "),
+                            ).joinToString(" · ") + if (c.pmsTypical) " → PMS-typisch" else "")
+                        }
+                    }
+                }
+            }
+        }
+        val top = pms.symptoms.filter { it.preRate > 0 }.take(6)
+        if (top.isNotEmpty()) {
+            HorizontalDivider()
+            Text("Beschwerden vor vs. nach der Periode", style = MaterialTheme.typography.titleSmall)
+            top.forEach { sym ->
+                RatioBar("${sym.term} (${sym.group})", sym.preRate, "vorher ${de.fembiond.app.domain.Pms.pct(sym.preRate)}", pc.luteal)
+                HintText("danach ${de.fembiond.app.domain.Pms.pct(sym.postRate)} der erfassten Tage · in ${sym.cycles} Zyklen vor der Periode")
+            }
+        }
+        HintText("Keine Diagnose – die Einschätzung hilft, Beschwerden für ein ärztliches Gespräch zu dokumentieren.")
+    }
+}
+
+/** Vergleich „vor der Periode“ / „danach“ mit Datenbasis und Einordnung in Alltagssprache. */
+@Composable
+fun DrspCard(pairs: List<de.fembiond.app.domain.DrspPair>, results: List<de.fembiond.app.domain.DrspResult>) {
+    val pc = LocalPhaseColors.current
+    var showBasis by remember { mutableStateOf(false) }
+    var showAll by remember { mutableStateOf(false) }
+    val counted = pairs.count { it.counted }
+    SectionCard(title = "Vor der Periode vs. danach", icon = Icons.Rounded.CompareArrows) {
+        Text("So funktioniert's", style = MaterialTheme.typography.titleSmall)
+        HintText("Für jede Periode werden zwei Wochen verglichen: die 7 Tage davor und Tag 4–10 danach. Pro Tag zählt die Stärke (0–5) – bei Unruhe die höchste Stufe des Tages. Ein Tag mit Einträgen, an dem etwas nicht auftrat, zählt als 0. Tage ohne Einträge zählen nicht.")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Datenbasis: $counted von ${pairs.size} Perioden auswertbar",
+                style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                color = if (counted >= 2) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.error,
+            )
+            androidx.compose.material3.TextButton(onClick = { showBasis = !showBasis }) { Text(if (showBasis) "ausblenden" else "Details") }
+        }
+        if (counted < 2) HintText("Eine Periode zählt, wenn in der Woche davor und an Tag 4–10 danach jeweils an mindestens ${de.fembiond.app.domain.Analytics.DRSP_MIN_DAYS} Tagen etwas eingetragen wurde. Für ein verlässliches Muster braucht es mindestens 2 solcher Perioden.")
+        androidx.compose.animation.AnimatedVisibility(showBasis) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (pairs.isEmpty()) HintText("Im Zeitraum liegt noch kein Periodenbeginn mit Vorgeschichte.")
+                pairs.sortedByDescending { it.periodStart }.forEach { p ->
+                    Row(verticalAlignment = Alignment.Top) {
+                        Icon(
+                            if (p.counted) Icons.Rounded.CheckCircle else Icons.Rounded.RemoveCircleOutline, null,
+                            tint = if (p.counted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 2.dp).size(18.dp),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text("Periode ab ${p.periodStart.short()}", style = MaterialTheme.typography.bodyMedium)
+                            HintText("Erfasste Tage: davor ${p.preDays}/7 · danach ${p.postDays}/7" + (p.reason?.let { " – $it" } ?: " – ausgewertet"))
+                        }
+                    }
+                }
+            }
+        }
+        if (results.isEmpty()) {
+            HintText("Noch keine Werte – sobald eine Periode auswertbar ist, erscheinen hier die Vergleiche.")
+        } else {
+            HorizontalDivider()
+            val shown = if (showAll) results else results.take(5)
+            shown.forEachIndexed { idx, d ->
+                if (idx > 0) Spacer(Modifier.height(4.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(d.term, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
+                            color = if (d.significant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                        Text(d.changePercent?.let { val r = it.roundToInt(); (if (r > 0) "+" else if (r == 0) "±" else "") + r + " %" } ?: "nur vorher", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Text(d.verdict, style = MaterialTheme.typography.bodySmall,
+                        color = if (d.significant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    RatioBar("7 Tage davor", d.premenstrual / 5, "Ø ${d.premenstrual.fmt1()}", pc.luteal)
+                    HintText("an ${d.preHits} von ${d.preDays} erfassten Tagen aufgetreten")
+                    RatioBar("Tag 4–10 danach", d.postmenstrual / 5, "Ø ${d.postmenstrual.fmt1()}", pc.follicular)
+                    HintText("an ${d.postHits} von ${d.postDays} erfassten Tagen aufgetreten")
+                }
+            }
+            if (results.size > 5) androidx.compose.material3.TextButton(onClick = { showAll = !showAll }) {
+                Text(if (showAll) "Weniger anzeigen" else "Alle ${results.size} Begriffe anzeigen")
+            }
+            HintText("Prozent = Unterschied „davor“ gegenüber „danach“. Ein deutliches Muster (farbig) gilt ab +30 % über mindestens 2 Perioden.")
+        }
+    }
+}
+
+/** Zyklen übereinandergelegt – nur Kennzahlen, zu denen es Einträge gibt. */
+@Composable
+fun OverlayCard(data: AppData, categories: Set<Category>) {
     val unrest = data.episodes.groupBy { it.date }.mapValues { (_, l) -> l.maxOf { it.level }.toDouble() }
     val tracked = (data.entries.map { it.time.toLocalDate() } + data.episodes.map { it.date }).toSet()
     fun scale(term: String): (java.time.LocalDate) -> Double? {
         val m = data.occurrences.filter { it.term == term }.groupBy { it.date }.mapValues { (_, l) -> l.mapNotNull { it.intensity }.average() }
         return { d -> m[d]?.takeIf { !it.isNaN() } }
     }
-    val hot = data.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.HOT_TERMS }.groupingBy { it.date }.eachCount()
-    val fn: (java.time.LocalDate) -> Double? = when (metric) {
-        0 -> { d -> unrest[d] ?: if (d in tracked) 0.0 else null }
-        1 -> scale(de.fembiond.app.domain.ScaleTerms.SLEEP_QUALITY)
-        2 -> scale(de.fembiond.app.domain.ScaleTerms.ENERGY)
-        else -> { d -> hot[d]?.toDouble() ?: if (d in tracked) 0.0 else null }
+    val peri = data.occurrences.filter { it.category == Category.PERIMENOPAUSE }.groupingBy { it.date }.eachCount()
+    val sleepTerm = de.fembiond.app.domain.ScaleTerms.SLEEP_QUALITY
+    val energyTerm = de.fembiond.app.domain.ScaleTerms.ENERGY
+    val metrics = buildList<Triple<String, (java.time.LocalDate) -> Double?, Double>> {
+        if (Category.MIND in categories && unrest.isNotEmpty()) add(Triple("Unruhe", { d -> unrest[d] ?: if (d in tracked) 0.0 else null }, 5.0))
+        if (Category.SLEEP_ENERGY in categories && data.occurrences.any { it.term == sleepTerm }) add(Triple("Schlaf", scale(sleepTerm), 5.0))
+        if (Category.SLEEP_ENERGY in categories && data.occurrences.any { it.term == energyTerm }) add(Triple("Energie", scale(energyTerm), 5.0))
+        if (Category.PERIMENOPAUSE in categories && peri.isNotEmpty()) add(Triple("Perimenopause", { d -> peri[d]?.toDouble() ?: if (d in tracked) 0.0 else null }, (peri.values.maxOrNull() ?: 3).coerceAtLeast(3).toDouble()))
     }
-    val (series, mean) = remember(data, metric) { overlaySeries(data, 6, fn) }
+    if (metrics.isEmpty()) return
+    var metric by remember { mutableStateOf(0) }
+    val m = metrics[metric.coerceIn(0, metrics.size - 1)]
+    val (series, mean) = remember(data, m.first) { overlaySeries(data, 6, m.second) }
     if (series.size < 2) return
-    val maxY = if (metric == 3) (series.flatten().filterNotNull().maxOrNull() ?: 3.0).coerceAtLeast(3.0) else 5.0
     SectionCard(title = "Zyklen übereinander", icon = Icons.Rounded.Layers) {
         HintText("Die letzten ${series.size} Zyklen nach Zyklustag übereinandergelegt. Die kräftige Linie ist der Mittelwert, neuere Zyklen sind dunkler. Hinterlegt: die letzte Woche vor der Periode.")
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            metrics.forEachIndexed { i, m -> FilterChip(metric == i, { metric = i }, { Text(m) }) }
-        }
-        CycleOverlayChart(series, mean, maxY, if (metric == 0) unrestColor(4) else if (metric == 3) LocalPhaseColors.current.follicular else MaterialTheme.colorScheme.secondary)
+        if (metrics.size > 1) Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            metrics.forEachIndexed { i, x -> FilterChip(metric == i, { metric = i }, { Text(x.first) }) }
+        } else Text(m.first, style = MaterialTheme.typography.labelLarge)
+        CycleOverlayChart(series, mean, m.third, when (m.first) {
+            "Unruhe" -> unrestColor(4); "Perimenopause" -> LocalPhaseColors.current.follicular; else -> MaterialTheme.colorScheme.secondary
+        })
     }
 }
 
-/** Perimenopause: STRAW-Einordnung, Zyklusvariabilität, Hitzewallungen und MRS-Verlauf. */
+/**
+ * Perimenopause nach aktueller Studienlage: alle erfassten typischen Beschwerden (Schlaf, Stimmung, Konzentration,
+ * Erschöpfung, Schmerzen, Herzklopfen, Blutung, Hitze …) – nur solche mit Einträgen –, dazu STRAW und MRS.
+ */
 @Composable
-fun PerimenopauseCard(data: AppData, from: java.time.LocalDate, to: java.time.LocalDate) {
-    val hot = data.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.HOT_TERMS && !it.date.isBefore(from) && !it.date.isAfter(to) }
-    val months = generateSequence(java.time.YearMonth.from(from)) { it.plusMonths(1) }.takeWhile { !it.isAfter(java.time.YearMonth.from(to)) }.toList()
-    val mrs = data.mrs.sortedBy { it.date }
+fun PerimenopauseCard(data: AppData, from: java.time.LocalDate, to: java.time.LocalDate, trackedDays: Int) {
+    val stats = de.fembiond.app.domain.PeriStats.symptomStats(data.occurrences, from, to)
+    val mrs = data.mrs.filter { !it.date.isBefore(from) && !it.date.isAfter(to) }.sortedBy { it.date }
+    val straw = data.summary.straw
+    val strawRelevant = straw == de.fembiond.app.domain.StrawStage.EARLY || straw == de.fembiond.app.domain.StrawStage.LATE
+    if (stats.isEmpty() && mrs.isEmpty() && !strawRelevant) return
+    val pc = LocalPhaseColors.current
+    var showAll by remember { mutableStateOf(false) }
     SectionCard(title = "Perimenopause", icon = Icons.Rounded.LocalFireDepartment) {
-        Text("STRAW+10: ${data.summary.straw.label}", style = MaterialTheme.typography.titleSmall)
-        HintText(data.summary.straw.description + (data.age?.let { " Alter: $it Jahre." } ?: ""))
-        if (hot.isNotEmpty() && months.size >= 2) {
-            Text("Hitzewallungen & Nachtschweiß pro Monat", style = MaterialTheme.typography.labelLarge)
-            LineChart(months.map { m -> hot.count { java.time.YearMonth.from(it.date) == m }.toDouble() },
-                months.map { "%02d/%02d".format(it.monthValue, it.year % 100) }, 0.0,
-                months.maxOf { m -> hot.count { java.time.YearMonth.from(it.date) == m } }.coerceAtLeast(4).toDouble(), LocalPhaseColors.current.follicular)
-            val byPhase = hot.groupBy { de.fembiond.app.domain.CycleEngine.dayInfo(data.summary, it.date)?.phase }.filterKeys { it != null }
-            if (byPhase.isNotEmpty()) HintText("Nach Phase: " + byPhase.entries.sortedByDescending { it.value.size }.joinToString { "${it.key!!.label} ${it.value.size}×" })
-        } else if (hot.isEmpty()) HintText("Noch keine Hitzewallungen oder Nachtschweiß erfasst – auf dem Startbildschirm geht das mit einem Tipp.")
+        if (strawRelevant || data.summary.naturalCompleteCount >= 4) {
+            Text("Zyklus (STRAW+10): ${straw.label}", style = MaterialTheme.typography.titleSmall)
+            HintText(straw.description + (data.age?.let { " Alter: $it Jahre." } ?: ""))
+        }
+        if (stats.isNotEmpty()) {
+            HorizontalDivider()
+            Text("Erfasste typische Beschwerden", style = MaterialTheme.typography.titleSmall)
+            HintText("Nach aktueller Forschung (u. a. SWAN-Studie) gehören neben Hitzewallungen vor allem Schlafprobleme, Reizbarkeit, neue Ängste, Konzentrationsprobleme, Erschöpfung, Gelenkschmerzen und Herzklopfen dazu. Gezeigt wird nur, was du erfasst hast – Anteil der Tage mit Einträgen.")
+            val shown = if (showAll) stats else stats.take(6)
+            shown.forEach { st ->
+                val byPhase = data.occurrences.filter { it.term == st.term && !it.date.isBefore(from) && !it.date.isAfter(to) }
+                    .mapNotNull { de.fembiond.app.domain.CycleEngine.dayInfo(data.summary, it.date)?.phase }
+                    .groupingBy { it }.eachCount().maxByOrNull { it.value }
+                RatioBar("${st.term} · ${st.group}", if (trackedDays > 0) st.days.toDouble() / trackedDays else 0.0, if (st.days == 1) "1 Tag" else "${st.days} Tage", pc.follicular)
+                byPhase?.takeIf { st.days >= 3 }?.let { HintText("am häufigsten in der ${it.key.label}") }
+            }
+            if (stats.size > 6) androidx.compose.material3.TextButton(onClick = { showAll = !showAll }) {
+                Text(if (showAll) "Weniger anzeigen" else "Alle ${stats.size} Beschwerden anzeigen")
+            }
+            val months = generateSequence(java.time.YearMonth.from(from)) { it.plusMonths(1) }.takeWhile { !it.isAfter(java.time.YearMonth.from(to)) }.toList()
+            val periDays = data.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.SYMPTOMS && !it.date.isBefore(from) && !it.date.isAfter(to) }
+                .map { it.date }.toSet()
+            if (months.size >= 2 && periDays.size >= 3) {
+                Text("Tage mit Beschwerden pro Monat", style = MaterialTheme.typography.labelLarge)
+                LineChart(months.map { m -> periDays.count { java.time.YearMonth.from(it) == m }.toDouble() },
+                    months.map { "%02d/%02d".format(it.monthValue, it.year % 100) }, 0.0,
+                    months.maxOf { m -> periDays.count { java.time.YearMonth.from(it) == m } }.coerceAtLeast(4).toDouble(), pc.follicular)
+            }
+        }
         if (mrs.isNotEmpty()) {
+            HorizontalDivider()
             val last = mrs.last()
-            Text("Menopause Rating Scale (MRS)", style = MaterialTheme.typography.labelLarge)
+            Text("Menopause Rating Scale (MRS)", style = MaterialTheme.typography.titleSmall)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 BigNumber("${last.total}", "Gesamt\n(0–44)")
                 BigNumber("${last.somatic}", "körperlich\n(0–16)")
@@ -217,22 +395,32 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
         Analytics.analyze(AnalysisInput(data.summary, data.occurrences, data.episodes, data.medications, data.gad, from, to, categories, events = data.events))
     }
     val pc = LocalPhaseColors.current
+    val all = categories.containsAll(FILTER_CATEGORIES)
+    val showMind = Category.MIND in categories
+    val showPeri = Category.PERIMENOPAUSE in categories
+    val showPms = Category.MIND in categories || Category.BODY in categories
+    val pms = remember(data, from, to) { de.fembiond.app.domain.Pms.analyze(data.summary, data.occurrences, data.episodes, data.today, from, to) }
 
     Screen(title = "Auswertung", nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("analysis")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         RangeAndFilter(data, range, { range = it }, categories, { categories = it })
         HintText("Zeitraum ${from.short()} – ${to.short()} · ${result.trackedDays} Tage mit Einträgen")
 
+        if (result.trackedDays == 0 && data.periods.isEmpty()) {
+            SectionCard(title = "Noch keine Daten") {
+                HintText("Im gewählten Zeitraum gibt es noch keine Einträge. Sobald etwas erfasst ist, erscheinen hier nur die Auswertungen, zu denen es Daten gibt.")
+            }
+        }
         if (result.insights.isNotEmpty()) SectionCard(title = "Erkenntnisse", icon = Icons.Rounded.AutoAwesome, container = MaterialTheme.colorScheme.primaryContainer) {
             result.insights.forEach { Text("• $it", color = MaterialTheme.colorScheme.onPrimaryContainer) }
         }
 
-        SectionCard(title = "Jahresübersicht", icon = Icons.Rounded.CalendarViewMonth) {
+        if (showMind && data.episodes.any { !it.date.isBefore(from) && !it.date.isAfter(to) }) SectionCard(title = "Jahresübersicht", icon = Icons.Rounded.CalendarViewMonth) {
             HintText("Ein Kästchen pro Tag der letzten 12 Monate, gefärbt nach der höchsten Unruhe-Stufe. Periodentage sind umrandet. Feld antippen für Details.")
             YearHeatmap(data, dayMarks(data).period) { nav.navigate(de.fembiond.app.Routes.day(it)) }
         }
 
         // Zyklen
-        SectionCard(title = "Zykluslänge & Abweichungen", icon = Icons.Rounded.Timeline) {
+        if (all && result.cycles.bars.isNotEmpty()) SectionCard(title = "Zykluslänge & Abweichungen", icon = Icons.Rounded.Timeline) {
             val cs = result.cycles
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 BigNumber(cs.median?.roundToInt()?.toString() ?: "–", "Tage (Median)")
@@ -247,7 +435,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                     Box(Modifier.weight(1f).height(16.dp)) {
                         val len = b.length ?: (data.today.toEpochDay() - b.start.toEpochDay() + 1).toInt()
                         Row(Modifier.fillMaxWidth(len.toFloat() / maxLen).height(16.dp).clip(RoundedCornerShape(8.dp))) {
-                            Box(Modifier.weight(b.periodLength.toFloat().coerceAtMost(len.toFloat())).height(16.dp).background(pc.menstruation))
+                            Box(Modifier.weight(b.periodLength.toFloat().coerceAtMost(len.toFloat())).height(16.dp).background(if (b.periodEstimated) pc.menstruation.copy(alpha = 0.45f) else pc.menstruation))
                             Box(Modifier.weight((len - b.periodLength).coerceAtLeast(1).toFloat()).height(16.dp)
                                 .background(if (b.length == null) pc.luteal.copy(alpha = 0.35f) else pc.luteal.copy(alpha = 0.7f)))
                         }
@@ -263,37 +451,28 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
                 }
             }
             if (cs.bars.isEmpty()) HintText("Noch keine Zyklen im Zeitraum.")
-            HintText("Zahl = Länge in Tagen (… = laufender Zyklus) · Warnsymbol = deutliche Abweichung · Kapsel = unter Medikation (nicht Teil der Grundlinie).")
+            ChipFlow {
+                LegendSwatch(pc.menstruation, "Periode")
+                LegendSwatch(pc.menstruation.copy(alpha = 0.45f), "Periode geschätzt (kein Ende eingetragen)")
+                LegendSwatch(pc.luteal.copy(alpha = 0.7f), "übriger Zyklus")
+            }
+            HintText("Zahl = Zykluslänge in Tagen (… = laufender Zyklus) · Warnsymbol = deutliche Abweichung · Kapsel = unter Medikation (nicht Teil der Grundlinie).")
             HintText("Perimenopause (STRAW+10): ${data.summary.straw.label}")
         }
 
-        OverlayCard(data)
+        OverlayCard(data, categories)
 
         if (result.heatmap.rows.isNotEmpty()) SectionCard(title = "Wann tritt was auf?", icon = Icons.Rounded.GridOn) {
             HintText("Anteil der erfassten Tage je Zyklustag. Tippe ein Feld an für Details.")
             HeatmapView(result.heatmap)
         }
 
-        val drsp = result.drsp.filter { it.cycles >= 1 }.take(8)
-        if (drsp.isNotEmpty()) SectionCard(title = "Vor der Periode vs. danach", icon = Icons.Rounded.CompareArrows) {
-            HintText("Mittlere Stärke (0–5) in den 7 Tagen vor der Periode verglichen mit Tag 4–10 – Methode nach DRSP. Hervorgehoben: mindestens 30 % stärker bei 2+ Zyklen.")
-            drsp.forEach { d ->
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(d.term, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f),
-                            color = if (d.significant) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                        Text(d.changePercent?.let { (if (it >= 0) "+" else "") + it.roundToInt() + " %" } ?: "nur prämenstruell", style = MaterialTheme.typography.labelLarge)
-                    }
-                    RatioBar("vorher", d.premenstrual / 5, d.premenstrual.fmt1(), pc.luteal)
-                    RatioBar("danach", d.postmenstrual / 5, d.postmenstrual.fmt1(), pc.follicular)
-                }
-            }
-            HintText("Ausgewertete Zyklen: ${drsp.first().cycles}")
-        }
+        if (result.drsp.isNotEmpty()) DrspCard(result.drspPairs, result.drsp)
 
-        PerimenopauseCard(data, from, to)
+        if (showPms && pms.symptoms.any { it.preRate > 0 || it.postRate > 0 }) PmsCard(pms)
+        if (showPeri) PerimenopauseCard(data, from, to, result.trackedDays)
 
-        SectionCard(title = "Unruhe nach Zyklusphase", icon = Icons.Rounded.Waves) {
+        if (showMind && result.unrestTotal > 0) SectionCard(title = "Unruhe nach Zyklusphase", icon = Icons.Rounded.Waves) {
             if (result.unrestTotal == 0) HintText("Im Zeitraum keine Unruhe-Episoden erfasst.") else {
                 Text("Stufen-Verteilung (${result.unrestTotal} Episoden)", style = MaterialTheme.typography.labelLarge)
                 Row(Modifier.fillMaxWidth().height(22.dp).clip(RoundedCornerShape(11.dp))) {
@@ -326,7 +505,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             }
         }
 
-        if (result.anticipation.any { it.events > 0 }) SectionCard(title = "Unruhe rund um Ereignisse", icon = Icons.Rounded.Event) {
+        if (showMind && result.anticipation.any { it.events > 0 }) SectionCard(title = "Unruhe rund um Ereignisse", icon = Icons.Rounded.Event) {
             HintText("Mittlere höchste Unruhe-Stufe an den Tagen vor und nach Ereignissen (0 = Ereignistag).")
             AnticipationChart(result.anticipation)
             if (result.eventTypes.isNotEmpty()) {
@@ -377,7 +556,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             }
         }
 
-        if (result.compare.size >= 2) SectionCard(title = "Vorher / Nachher Medikation", icon = Icons.Rounded.Medication) {
+        if (all && result.compare.size >= 2) SectionCard(title = "Vorher / Nachher Medikation", icon = Icons.Rounded.Medication) {
             result.compare.forEach { c ->
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(c.label, style = MaterialTheme.typography.titleSmall)
@@ -396,25 +575,33 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             HintText("Für belastbare Vergleiche braucht jede Phase mehrere Zyklen.")
         }
 
-        if (result.trends.size >= 2) SectionCard(title = "Verläufe pro Monat", icon = Icons.Rounded.ShowChart) {
+        val trendData = result.trends.size >= 2 && (
+            (showMind && result.trends.any { it.unrestCount > 0 || it.gad != null }) ||
+                (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
+        if (trendData) SectionCard(title = "Verläufe pro Monat", icon = Icons.Rounded.ShowChart) {
             val labels = result.trends.map { it.month.monthValue.toString().padStart(2, '0') + "/" + (it.month.year % 100) }
-            if (result.trends.any { it.meanSleep != null }) {
+            val showSleep = Category.SLEEP_ENERGY in categories
+            if (showSleep && result.trends.any { it.meanSleep != null }) {
                 Text("Schlafqualität (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanSleep }, labels, 1.0, 5.0, MaterialTheme.colorScheme.secondary)
             }
-            if (result.trends.any { it.meanEnergy != null }) {
+            if (showSleep && result.trends.any { it.meanEnergy != null }) {
                 Text("Energie (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanEnergy }, labels, 1.0, 5.0, MaterialTheme.colorScheme.tertiary)
             }
+            if (showMind && result.trends.any { it.unrestCount > 0 }) {
             Text("Unruhe-Episoden pro Monat", style = MaterialTheme.typography.labelLarge)
             LineChart(result.trends.map { it.unrestCount.toDouble() }, labels, 0.0, (result.trends.maxOf { it.unrestCount }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.tertiary)
-            if (result.trends.any { it.meanUnrestLevel != null }) {
+            }
+            if (showMind && result.trends.any { it.meanUnrestLevel != null }) {
                 Text("Mittlere Unruhe-Stufe (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanUnrestLevel }, labels, 1.0, 5.0, unrestColor(3))
             }
+            if (showMind && result.trends.any { it.panicCount > 0 }) {
             Text("Panikattacken pro Monat", style = MaterialTheme.typography.labelLarge)
             LineChart(result.trends.map { it.panicCount.toDouble() }, labels, 0.0, (result.trends.maxOf { it.panicCount }.coerceAtLeast(4)).toDouble(), MaterialTheme.colorScheme.error)
-            if (result.trends.any { it.gad != null }) {
+            }
+            if (showMind && result.trends.any { it.gad != null }) {
                 Text("GAD-7 (0–21)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.gad }, labels, 0.0, 21.0, MaterialTheme.colorScheme.primary)
             }
