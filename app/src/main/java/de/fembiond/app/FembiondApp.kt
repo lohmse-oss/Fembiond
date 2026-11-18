@@ -7,7 +7,14 @@ import de.fembiond.app.data.SettingsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class)
 class FembiondApp : Application() {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val repository: Repository by lazy {
@@ -16,6 +23,14 @@ class FembiondApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        Reminders.schedule(this)
+        runCatching { Reminders.schedule(this) }
+        // Widget aktualisieren, sobald sich angezeigte Daten ändern
+        scope.launch {
+            repository.data.filterNotNull()
+                .map { de.fembiond.app.widget.WidgetState.from(it) }
+                .distinctUntilChanged()
+                .debounce(800)
+                .collect { de.fembiond.app.widget.CycleWidget.refresh(this@FembiondApp) }
+        }
     }
 }

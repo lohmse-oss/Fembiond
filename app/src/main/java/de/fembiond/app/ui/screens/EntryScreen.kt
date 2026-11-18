@@ -79,9 +79,9 @@ private typealias Key = Pair<String, Category>
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalDate?, noteMode: Boolean) {
+fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalDate?, noteMode: Boolean, initialText: String = "") {
     val context = LocalContext.current
-    var text by rememberSaveable { mutableStateOf("") }
+    var text by rememberSaveable { mutableStateOf(initialText) }
     var usedVoice by rememberSaveable { mutableStateOf(false) }
     var date by remember { mutableStateOf(day ?: data.today) }
     val selections = remember { mutableStateMapOf<Key, Selection>() }

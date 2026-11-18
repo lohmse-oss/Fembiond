@@ -53,6 +53,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         val app = applicationContext as FembiondApp
         val data = withTimeoutOrNull(20_000) { app.repository.data.filterNotNull().first() } ?: return Result.success()
+        de.fembiond.app.widget.CycleWidget.refresh(applicationContext)
         val s = data.settings
         if (!s.reminderEnabled || !s.onboardingDone || LocalTime.now().hour != s.reminderHour) return Result.success()
         val prefs = applicationContext.getSharedPreferences("reminders", Context.MODE_PRIVATE)

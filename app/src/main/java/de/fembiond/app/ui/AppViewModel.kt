@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
-    val repo: Repository = (app as FembiondApp).repository
-    val data: StateFlow<AppData?> = repo.data
+    val repo: Repository by lazy { (app as FembiondApp).repository }
+    val data: StateFlow<AppData?> get() = repo.data
 
     fun run(block: suspend Repository.() -> Unit) {
         viewModelScope.launch { repo.block() }

@@ -34,6 +34,12 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+        unitTests.isIncludeAndroidResources = true
+        unitTests.all {
+            it.systemProperty("roborazzi.test.record", "true")
+            it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
+            it.maxHeapSize = "3g"
+        }
     }
 }
 
@@ -66,8 +72,15 @@ dependencies {
     implementation(libs.datastore.preferences)
     implementation(libs.biometric)
     implementation(libs.work.runtime)
+    implementation(libs.glance.appwidget)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.compose.bom))
+    testImplementation(libs.compose.ui.test.junit4)
+    debugImplementation(libs.compose.ui.test.manifest)
 }
