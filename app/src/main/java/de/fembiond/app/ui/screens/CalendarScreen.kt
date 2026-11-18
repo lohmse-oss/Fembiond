@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +21,8 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Medication
-import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -87,9 +89,10 @@ fun CalendarScreen(data: AppData, nav: NavController) {
     val marks = dayMarks(data)
     val pc = LocalPhaseColors.current
     val entryDays = data.entries.map { it.time.toLocalDate() }.toSet()
-    val panicDays = data.panics.map { it.date }.toSet()
+    val unrestDays = data.episodes.groupBy { it.date }.mapValues { (_, l) -> l.maxOf { it.level } }
+    val eventDays = data.events.map { it.date }.toSet()
 
-    Screen(title = "Kalender", nav = null) {
+    Screen(title = "Kalender", nav = null, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("calendar")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         SectionCard(container = MaterialTheme.colorScheme.surfaceContainerLowest) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { month = ym.minusMonths(1).toString() }) { Icon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Vorheriger Monat") }
@@ -136,7 +139,8 @@ fun CalendarScreen(data: AppData, nav: NavController) {
                                     }
                                     Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                         if (d in entryDays) Box(Modifier.size(5.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
-                                        if (d in panicDays) Box(Modifier.size(5.dp).clip(CircleShape).background(MaterialTheme.colorScheme.error))
+                                        unrestDays[d]?.let { lvl -> Box(Modifier.size(5.dp).clip(CircleShape).background(de.fembiond.app.ui.unrestColor(lvl))) }
+                                        if (d in eventDays) Box(Modifier.size(5.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(1.dp)).background(MaterialTheme.colorScheme.tertiary))
                                     }
                                 }
                             }
@@ -150,7 +154,8 @@ fun CalendarScreen(data: AppData, nav: NavController) {
             LegendRow(pc.menstruation, filled = false, "Prognose nächste Periode")
             LegendRow(pc.fertile, filled = true, "Fruchtbares Fenster (geschätzt)")
             LegendRow(MaterialTheme.colorScheme.primary, filled = true, "Eintrag vorhanden", small = true)
-            LegendRow(MaterialTheme.colorScheme.error, filled = true, "Panikattacke", small = true)
+            LegendRow(de.fembiond.app.ui.unrestColor(3), filled = true, "Unruhe (Farbe nach Stufe, rot = Panik)", small = true)
+            LegendRow(MaterialTheme.colorScheme.tertiary, filled = true, "Ereignis", small = true)
         }
     }
 }
@@ -177,7 +182,8 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
     val periodHere = data.periods.firstOrNull { p -> !date.isBefore(p.start) && (p.end?.let { !date.isAfter(it) } ?: (date == p.start)) }
     val startsHere = data.periods.firstOrNull { it.start == date }
     val entries = data.entries.filter { it.time.toLocalDate() == date }.sortedBy { it.time }
-    val panics = data.panics.filter { it.date == date }
+    val panics = data.episodes.filter { it.date == date }.sortedBy { it.time }
+    val dayEvents = data.events.filter { it.date == date }
 
     Screen(title = date.weekdayLong(), nav = nav) {
         SectionCard {
@@ -189,7 +195,7 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
                 }
                 if (info.medicated) HintText("Zyklus unter Medikation")
             } else HintText("Für diesen Tag ist noch kein Zyklus erfasst.")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChipFlow {
                 if (startsHere != null) {
                     OutlinedButton(onClick = { vm.run { deletePeriod(startsHere.id) } }) { Text("Periodenbeginn entfernen") }
                 } else {
@@ -216,16 +222,16 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
             }
         }
 
-        if (panics.isNotEmpty()) SectionCard(title = "Panikattacken", icon = Icons.Rounded.MonitorHeart) {
+        if (dayEvents.isNotEmpty()) SectionCard(title = "Ereignisse", icon = Icons.Rounded.Event) {
+            dayEvents.forEach { e ->
+                EventItem(e, data, onClick = { nav.navigate(Routes.EVENTS) }, showOutcome = !date.isAfter(data.today),
+                    onOutcome = { o -> vm.run { saveEvent(e.copy(outcome = o)) } })
+            }
+        }
+
+        if (panics.isNotEmpty()) SectionCard(title = "Unruhe", icon = Icons.Rounded.Waves) {
             panics.forEach { p ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("${p.time.hm()} · Stärke ${p.intensity}" + (p.durationMinutes?.let { " · ca. $it Min." } ?: ""), style = MaterialTheme.typography.titleSmall)
-                        if (p.symptoms.isNotEmpty()) HintText("Symptome: " + p.symptoms.joinToString())
-                        if (p.triggers.isNotEmpty()) HintText("Auslöser: " + p.triggers.joinToString())
-                        if (p.helped.isNotEmpty()) HintText("Geholfen: " + p.helped.joinToString())
-                        if (p.note.isNotBlank()) Text("„${p.note}“")
-                    }
+                EpisodeRow(p, data) {
                     IconButton(onClick = { vm.run { deletePanic(p.id) } }) { Icon(Icons.Rounded.Delete, "Löschen") }
                 }
             }
@@ -253,6 +259,9 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
         if (!date.isAfter(data.today)) {
             Button(onClick = { nav.navigate(Routes.entry(date)) }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(8.dp)); Text("Eintrag für diesen Tag")
+            }
+            OutlinedButton(onClick = { nav.navigate(Routes.unrest(day = date)) }, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Rounded.Waves, null); Spacer(Modifier.width(8.dp)); Text("Unruhe für diesen Tag")
             }
         }
         PhaseLegend()

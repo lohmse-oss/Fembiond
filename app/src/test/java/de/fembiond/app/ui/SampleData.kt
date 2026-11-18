@@ -9,7 +9,9 @@ import de.fembiond.app.domain.CycleEngine
 import de.fembiond.app.domain.GadRecord
 import de.fembiond.app.domain.Lexicon
 import de.fembiond.app.domain.MedicationPhase
-import de.fembiond.app.domain.PanicRecord
+import de.fembiond.app.domain.Episode
+import de.fembiond.app.domain.EventOutcome
+import de.fembiond.app.domain.PlannedEvent
 import de.fembiond.app.domain.PeriodRecord
 import de.fembiond.app.domain.ScaleTerms
 import de.fembiond.app.domain.ScheduleType
@@ -34,7 +36,16 @@ object SampleData {
         val summary0 = CycleEngine.analyze(periods, listOf(med), today)
 
         val occ = mutableListOf<TermOccurrence>()
-        val panics = mutableListOf<PanicRecord>()
+        val panics = mutableListOf<Episode>()
+        val events = mutableListOf<PlannedEvent>()
+        val types = listOf("Geburtstagsfeier", "Essen gehen", "Konzert", "Treffen mit Freunden", "Familienfeier")
+        var evDay = starts[3].plusDays(5)
+        var evId = 1L
+        while (evDay.isBefore(today.plusDays(20))) {
+            val outcome = if (evDay.isAfter(today)) EventOutcome.PLANNED else if (rnd.nextDouble() < 0.2) EventOutcome.CANCELLED else EventOutcome.ATTENDED
+            events += PlannedEvent(evId++, evDay, types[rnd.nextInt(types.size)], if (evId == 4L) "Annas 40." else "", "", outcome)
+            evDay = evDay.plusDays(9L + rnd.nextInt(8))
+        }
         var day = starts[3]
         while (!day.isAfter(today)) {
             val info = CycleEngine.dayInfo(summary0, day)
@@ -47,10 +58,18 @@ object SampleData {
             if ((info?.cycleDay ?: 99) <= 2) occ += TermOccurrence(t, "Krämpfe", Category.BODY, 3 + rnd.nextInt(2))
             if ((info?.cycleDay ?: 99) in 1..3 && rnd.nextDouble() < 0.5) occ += TermOccurrence(t, "Kopfschmerzen", Category.BODY, 3)
             if (rnd.nextDouble() < 0.15) occ += TermOccurrence(t, "Nachtschweiß", Category.PERIMENOPAUSE, 2)
+            if (rnd.nextDouble() < 0.25) occ += TermOccurrence(day.atTime(14, 0), "Hitzewallung", Category.PERIMENOPAUSE, 2 + rnd.nextInt(2))
             if (rnd.nextDouble() < 0.12) occ += TermOccurrence(t, "Arbeitsstress", Category.LIFE, null, Valence.BURDEN)
             if ((info?.cycleDay ?: 0) in 8..14 && rnd.nextDouble() < 0.5) occ += TermOccurrence(t, "ausgeglichen", Category.MIND, 4)
-            if (before in 1..4 && rnd.nextDouble() < 0.35) panics += PanicRecord(
-                0, day.atTime(22, 30), 15, 3 + rnd.nextInt(2), listOf("Herzrasen", "Atemnot"), listOf("nachts aus dem Schlaf"), listOf("Atemübung"),
+            val ev = events.firstOrNull { e -> val d0 = de.fembiond.app.domain.daysBetween(day, e.date); d0 in 0..3 && !e.date.isAfter(today) }
+            if (ev != null) {
+                val d0 = de.fembiond.app.domain.daysBetween(day, ev.date)
+                val boost = if (before <= 7) 1 else 0
+                val lvl = (when (d0) { 0 -> 3; 1 -> 2; else -> 1 } + boost + rnd.nextInt(2)).coerceAtMost(5)
+                if (rnd.nextDouble() < 0.8) panics += Episode(0, day.atTime(19, 0), 30, lvl, listOf("Herzklopfen", "Magen / Bauchgrummeln"),
+                    listOf("Anstehendes Ereignis"), listOf("Atemübung"), eventId = ev.id)
+            } else if (before in 1..4 && rnd.nextDouble() < 0.3) panics += Episode(
+                0, day.atTime(22, 30), 15, 2 + rnd.nextInt(3), listOf("Herzrasen"), listOf("nachts aus dem Schlaf"), listOf("Atemübung"),
             )
             day = day.plusDays(1)
         }
@@ -74,7 +93,15 @@ object SampleData {
             intakes = intakes,
             occurrences = occ,
             entries = entries,
-            panics = panics,
+            episodes = panics,
+            events = events,
+            mrs = listOf(
+                de.fembiond.app.domain.MrsRecord(today.minusDays(84), listOf(2, 1, 2, 1, 2, 2, 2, 1, 0, 1, 1)),
+                de.fembiond.app.domain.MrsRecord(today.minusDays(56), listOf(2, 1, 3, 2, 2, 3, 2, 1, 0, 1, 1)),
+                de.fembiond.app.domain.MrsRecord(today.minusDays(28), listOf(3, 1, 2, 1, 2, 2, 2, 1, 0, 1, 2)),
+                de.fembiond.app.domain.MrsRecord(today.minusDays(2), listOf(2, 1, 2, 1, 1, 2, 1, 1, 0, 1, 1)),
+            ),
+            profile = de.fembiond.app.domain.Profile("Mia", LocalDate.of(1986, 3, 14)),
             gad = listOf(GadRecord(today.minusDays(60), 11), GadRecord(today.minusDays(30), 9), GadRecord(today.minusDays(5), 8)),
             terms = terms,
             summary = summary0,

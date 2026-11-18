@@ -69,16 +69,55 @@ Grundlagen: DRSP (Daily Record of Severity of Problems), Menopause Rating Scale 
 - **Stufe 2 (später, optional):** lokales Sprachmodell (z. B. Gemma via MediaPipe/LiteRT) als
   austauschbarer Baustein. Gemini Nano ist auf dem Pixel 7 nicht verfügbar.
 
-## 5. Unruhe & Panikattacken
+## 5. Unruhe-Episoden und Ereignisse
 
-Eigener Schnelleintrag, gut erreichbar (Schnelltaste auf dem Startbildschirm):
-- Zeitpunkt (automatisch), Dauer, Stärke 1–5
-- Symptome (DSM-5-angelehnt): Herzrasen, Atemnot, Zittern, Schwindel, Engegefühl in der Brust,
-  Hitze/Kälte, Kribbeln, Angst vor Kontrollverlust, Unwirklichkeitsgefühl, Übelkeit, Schwitzen
-- Auslöser (wachsend): Menschenmenge, Stress, nachts aus dem Schlaf, ohne erkennbaren Grund …
-- Was hat geholfen (wachsend): Atmen, Bewegung, Medikament, Gespräch …
+Im Vordergrund stehen Unruhezustände in verschiedenen Schweregraden. Im schlimmsten Fall münden sie in eine Panikattacke,
+oft im Vorfeld anstehender Ereignisse (Geburtstagsfeier, Essen gehen, Konzert …).
+
+### 5.1 Unruhe-Episode (Schnelleintrag, auch im Widget)
+- **Stufe 1–5:** 1 leicht · 2 spürbar · 3 stark (körperliche Anzeichen) · 4 sehr stark (kurz vor Panik) · 5 Panikattacke
+- Optional Bezug zu einem Ereignis (Auslöser „Anstehendes Ereignis“ wird dann vorgeschlagen)
+- Zeitpunkt, Dauer, körperliche Anzeichen, Auslöser und was geholfen hat (jeweils wachsende Listen), Notiz
+- „Innere Unruhe“ bleibt zusätzlich als Begriff im Tageseintrag für das Grundgefühl.
+
+### 5.2 Ereignisse
+- Planen mit Datum, Art (wachsende Liste: Geburtstagsfeier, Essen gehen, Konzert, Party/Feier, Familienfeier,
+  Treffen mit Freunden, Kino/Theater, Arzttermin, Termin bei der Arbeit, Reise, Einkaufen/Menschenmenge),
+  optionaler Bezeichnung und Notiz.
+- Anzeige der voraussichtlichen Zyklusphase am Ereignistag, mit Hinweis, wenn es in die Tage vor der Periode fällt.
+- Nach dem Ereignis Ausgang erfassen: war dort, früher gegangen, abgesagt.
+- Erinnerung am Vortag.
+
+### 5.3 Auswertung
+- Verteilung der Stufen, Unruhe nach Zyklusphase (Anzahl, mittlere Stufe, relative Häufigkeit, Panik-Anteil)
+- Anteil der Episoden, die bis zur Panik eskalieren
+- Unruhe rund um Ereignisse: mittlere höchste Stufe von 7 Tagen vorher bis 1 Tag danach
+- Nach Ereignisart: Anteil mit Unruhe vorher, mittlere Stufe, Panik, Absagen
+- Nach Zeitpunkt im Zyklus: Ereignisse in den 7 Tagen vor der Periode im Vergleich zur übrigen Zeit
 
 Optional: GAD-7-Fragebogen alle 14 Tage.
+
+## 5a. Belastungshinweis und Wochenrückblick
+
+- **Belastungshinweis** für Ereignisse der nächsten 7 Tage, wenn Faktoren zusammenkommen: voraussichtlich in den 7 Tagen vor der Periode
+  (mit Vergleich zur bisherigen Erfahrung), Ereignisart bisher mit Ø Stufe ≥ 3, Schlafqualität der letzten 3 Tage Ø ≤ 2,
+  Unruhe der letzten 3 Tage ≥ Stufe 3, weiteres Ereignis innerhalb eines Tages. Ab 2 Faktoren „gut vorbereiten“.
+  Tipps: zuerst, was bisher geholfen hat, sonst allgemeine Strategien. Auch in der Vortags-Erinnerung.
+- **Wochenrückblick** sonntags (Startbildschirm So/Mo, Benachrichtigung): letzte 7 Tage im Vergleich zu den 4 Wochen davor
+  (Unruhe, Panik, Schlaf, Hitzewallungen, gute Tage) und Ausblick auf Ereignisse der nächsten Woche mit Phasenprognose.
+
+## 5b. Perimenopause vertieft
+
+- Schnellerfassung Hitzewallung / Nachtschweiß mit einem Tipp (Startbildschirm).
+- MRS (Menopause Rating Scale) alle 28 Tage: 11 Items 0–4, Gesamt 0–44, Subskalen somatisch / psychisch / urogenital,
+  Einordnung 0–4 / 5–8 / 9–15 / ≥ 16.
+- Auswertung: STRAW+10, Hitzewallungen pro Monat und nach Phase, MRS-Verlauf und Teilwerte; MRS in KI-Export und PDF.
+
+## 5c. Personalisierung
+
+- Die App ist für genau eine Person. Name und Geburtsdatum werden einmalig auf dem Gerät abgefragt und nur in der
+  verschlüsselten Datenbank gespeichert (nicht im Quellcode, da das Repository öffentlich ist).
+- Begrüßung nach Tageszeit, genaues Alter, Geburtstagsgruß. Der Name erscheint nicht in Exporten.
 
 ## 6. Notizen und Lebensumstände
 
@@ -141,6 +180,16 @@ und in Korrelationen geringer gewichtet. Später ist alles über den Kalender ed
 - Kontraste mindestens WCAG AA. Information nie nur über Farbe.
 - Keine Emojis, sondern Material Symbols (Rounded) und eigene Piktogramme.
 - Visualisierungen: Zyklusring, Heatmap, Zyklusvergleich, Verläufe, Vorher/Nachher. Antippbar.
+
+## 11a. Visualisierung und Bedienung
+
+- Kopfbereich im Farbverlauf der aktuellen Phase
+- Animierter, antippbarer Zyklusring mit Unruhe-Punkten und Tages-Kurzinfo
+- Wischbarer Wochenstreifen (Phase, Unruhe, Schlaf), Mini-Verläufe der letzten 14 Tage
+- Jahresübersicht als Kalender-Heatmap, Zyklen-Überlagerung mit Mittelwert
+- Haptisches Feedback, Übergangsanimationen, Predictive Back
+- Widgets: 4×1 (skalierbar), 2×2 Ring, 1×1 Unruhe-Schnelltaste
+- Seiten „Über“ (Version, Versionshinweise, Updates) und „Anleitung“ (kontextbezogen über das Fragezeichen)
 
 ## 12. Technik
 

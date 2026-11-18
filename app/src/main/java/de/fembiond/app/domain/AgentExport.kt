@@ -27,6 +27,7 @@ object AgentExport {
         intakes: Set<Pair<Long, LocalDate>>,
         notes: List<Pair<LocalDate, String>>,
         today: LocalDate,
+        mrs: List<MrsRecord> = emptyList(),
     ): String {
         val s = input.summary
         val doc = buildJsonObject {
@@ -99,17 +100,42 @@ object AgentExport {
                         })
                     }
             }
-            putJsonArray("panic_attacks") {
-                input.panics.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }.forEach { p ->
+            putJsonArray("unrest_episodes") {
+                input.episodes.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }.forEach { p ->
                     val info = CycleEngine.dayInfo(s, p.date)
                     add(buildJsonObject {
                         put("datetime", p.time.toString())
-                        info?.let { put("cycle_day", it.cycleDay); put("phase", it.phase.name) }
-                        put("intensity_1_5", p.intensity)
+                        info?.let { put("cycle_day", it.cycleDay); put("phase", it.phase.name); it.daysBeforeNext?.let { n -> put("days_before_next_period", n) } }
+                        put("level_1_5", p.level)
+                        put("level_label", p.unrestLevel.label)
+                        put("is_panic_attack", p.isPanic)
                         p.durationMinutes?.let { put("duration_min_approx", it) }
-                        put("symptoms", JsonArray(p.symptoms.map(::JsonPrimitive)))
+                        p.eventId?.let { id -> input.events.firstOrNull { it.id == id }?.let { e -> put("related_event", e.displayName); put("days_until_event", daysBetween(p.date, e.date)) } }
+                        put("body_signs", JsonArray(p.symptoms.map(::JsonPrimitive)))
                         put("triggers", JsonArray(p.triggers.map(::JsonPrimitive)))
                         put("helped", JsonArray(p.helped.map(::JsonPrimitive)))
+                        if (p.backfilled) put("backfilled", true)
+                    })
+                }
+            }
+            putJsonArray("events") {
+                input.events.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to.plusDays(60)) }.forEach { e ->
+                    val info = CycleEngine.dayInfo(s, e.date) ?: CycleEngine.projectDay(s, e.date)
+                    add(buildJsonObject {
+                        put("date", e.date.toString())
+                        put("type", e.type)
+                        if (e.title.isNotBlank()) put("title", e.title)
+                        put("outcome", e.outcome.name)
+                        info?.let { put("cycle_day", it.cycleDay); put("phase", it.phase.name); put("phase_is_forecast", it.predicted && e.date.isAfter(today)) }
+                        if (!e.date.isAfter(today)) put("max_unrest_level_3_days_before_to_event", Analytics.anticipatoryLevel(e, input.episodes))
+                    })
+                }
+            }
+            putJsonArray("mrs_menopause_rating_scale") {
+                mrs.filter { !it.date.isBefore(input.from) }.forEach { m ->
+                    add(buildJsonObject {
+                        put("date", m.date.toString()); put("total_0_44", m.total)
+                        put("somatic_0_16", m.somatic); put("psychological_0_16", m.psychological); put("urogenital_0_12", m.urogenital)
                     })
                 }
             }
@@ -124,13 +150,36 @@ object AgentExport {
                         })
                     }
                 }
-                putJsonArray("panic_by_phase") {
-                    result.panicByPhase.forEach { p ->
+                putJsonArray("unrest_by_phase") {
+                    result.unrestByPhase.forEach { p ->
                         add(buildJsonObject {
-                            put("phase", p.phase.name); put("count", p.count)
-                            p.meanIntensity?.let { put("mean_intensity", round1(it)) }
+                            put("phase", p.phase.name); put("episodes", p.count); put("panic_attacks", p.panicCount)
+                            p.meanLevel?.let { put("mean_level", round1(it)) }
                             p.relativeFrequency?.let { put("relative_frequency", round1(it)) }
                         })
+                    }
+                }
+                put("episodes_per_level_1_to_5", JsonArray(result.levelCounts.map { JsonPrimitive(it) }))
+                putJsonArray("unrest_around_events") {
+                    result.anticipation.forEach { a ->
+                        add(buildJsonObject {
+                            put("day_offset_to_event", a.offset); put("events_with_data", a.events)
+                            a.meanMaxLevel?.let { put("mean_max_level", round1(it)) }
+                            a.share?.let { put("share_with_unrest", round1(it)) }
+                        })
+                    }
+                }
+                putJsonArray("event_types") {
+                    result.eventTypes.forEach { t ->
+                        add(buildJsonObject {
+                            put("type", t.type); put("events", t.events); put("share_with_unrest", round1(t.shareWithUnrest))
+                            put("mean_max_level", round1(t.meanMaxLevel)); put("panic_attacks", t.panics); put("cancelled_or_left_early", t.cancelled)
+                        })
+                    }
+                }
+                putJsonArray("events_by_cycle_timing") {
+                    result.eventPhases.forEach { t ->
+                        add(buildJsonObject { put("timing", t.label); put("events", t.events); put("mean_max_level", round1(t.meanMaxLevel)); put("cancelled_or_left_early", t.cancelled) })
                     }
                 }
                 putJsonArray("event_effects") {
@@ -142,6 +191,8 @@ object AgentExport {
                     result.compare.forEach { c ->
                         add(buildJsonObject {
                             put("group", c.label); put("tracked_days", c.trackedDays)
+                            c.unrestPer30?.let { put("unrest_episodes_per_30_days", round1(it)) }
+                            c.meanUnrestLevel?.let { put("mean_unrest_level", round1(it)) }
                             c.panicPer30?.let { put("panic_per_30_days", round1(it)) }
                             c.meanSleep?.let { put("mean_sleep_quality", round1(it)) }
                             c.meanEnergy?.let { put("mean_energy", round1(it)) }
@@ -158,7 +209,9 @@ object AgentExport {
             appendLine("Zeitraum: ${input.from} bis ${input.to}. " + (age?.let { "Alter: $it Jahre. " } ?: "") + "Erstellt am $today.")
             appendLine()
             appendLine("## Kontext für die Auswertung")
-            appendLine("- Selbst erfasste Daten einer Frau mit Fokus auf Zyklus, Perimenopause, innere Unruhe und Panikattacken.")
+            appendLine("- Selbst erfasste Daten einer Frau mit Fokus auf Zyklus, Perimenopause und Unruhezuständen.")
+            appendLine("- Unruhe wird als Episode in Stufen erfasst: 1 leicht, 2 spürbar, 3 stark (körperliche Anzeichen), 4 sehr stark (kurz vor Panik), 5 Panikattacke. Unruhe tritt häufig vor anstehenden Ereignissen auf (Feiern, Essen gehen, Konzerte). Episoden können mit einem Ereignis verknüpft sein.")
+            appendLine("- `events` enthält geplante und vergangene Ereignisse mit Ausgang (wahrgenommen, früher gegangen, abgesagt) und der Zyklusphase am Ereignistag (bei zukünftigen Ereignissen als Prognose).")
             appendLine("- Zyklustag 1 = erster Tag der Periode. Phasen: MENSTRUATION, FOLLICULAR, OVULATION (geschätzt 14 Tage vor der nächsten Periode), LUTEAL.")
             appendLine("- Intensitäten auf einer Skala von 1 (leicht) bis 5 (sehr stark). `Schlafqualität` und `Energie` sind Skalenwerte 1–5 (5 = sehr gut).")
             appendLine("- `backfilled` = nachträglich aus Notizen erfasst (geringer gewichtet), `approximate` = Datum ungefähr.")
@@ -177,10 +230,11 @@ object AgentExport {
             }
             appendLine()
             appendLine("## Mögliche Fragen an dich")
-            appendLine("1. Welche Muster zwischen Zyklusphase und Unruhe/Panik erkennst du, und wie robust sind sie angesichts der Datenmenge?")
-            appendLine("2. Passen die Zyklusverläufe zu einer beginnenden Perimenopause?")
-            appendLine("3. Was fällt im Vergleich vor und unter Medikation auf?")
-            appendLine("4. Welche Punkte sollten beim nächsten Arzttermin angesprochen werden?")
+            appendLine("1. Welche Muster zwischen Zyklusphase und Unruhe (inkl. Steigerung bis zur Panik) erkennst du, und wie robust sind sie angesichts der Datenmenge?")
+            appendLine("2. Wie verläuft die Unruhe vor Ereignissen, und welche Ereignisarten oder Zyklusphasen sind besonders belastend? Welche Strategien haben geholfen?")
+            appendLine("3. Passen die Zyklusverläufe zu einer beginnenden Perimenopause?")
+            appendLine("4. Was fällt im Vergleich vor und unter Medikation auf?")
+            appendLine("5. Welche Punkte sollten beim nächsten Arzt- oder Therapietermin angesprochen werden?")
             appendLine()
             appendLine("## Daten (JSON)")
             appendLine("```json")

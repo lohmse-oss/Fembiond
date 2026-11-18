@@ -1,5 +1,6 @@
 package de.fembiond.app.ui.screens
 
+import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -61,7 +62,7 @@ fun MedicationScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     var replacing by remember { mutableStateOf<MedicationPhase?>(null) }
     val today = data.today
 
-    Screen(title = "Medikation", nav = nav) {
+    Screen(title = "Medikation", nav = nav, actions = { androidx.compose.material3.IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide("meds")) }) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } }) {
         HintText("Jede Behandlungsphase hat Start und optional Ende. Ändert sich Dosis, Form oder Schema, beginnt eine neue Phase – die alte bleibt für Vorher/Nachher-Vergleiche erhalten.")
         Button(onClick = {
             editing = MedicationPhase(name = "", form = "oral", dose = "", schedule = ScheduleType.CYCLIC, cycleDayFrom = 14, cycleDayTo = 25, start = today)
@@ -71,11 +72,12 @@ fun MedicationScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             val active = m.activeOn(today)
             val (taken, due) = adherence(m, data)
             SectionCard(title = m.displayName(), icon = Icons.Rounded.Medication, container = if (active) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow) {
-                Text("${m.scheduleLabel()} · ${m.start.short()} – ${m.end?.short() ?: "laufend"}")
+                Text("Schema: ${m.scheduleLabel()}")
+                HintText(if (m.end == null) "seit ${m.start.short()} (laufend)" else "${m.start.short()} – ${m.end.short()}")
                 if (due > 0) HintText("Einnahme: $taken von $due fälligen Tagen abgehakt")
                 m.reviewDate?.let { HintText("Neubefund/Arzttermin: ${it.short()}") }
                 if (m.note.isNotBlank()) HintText(m.note)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ChipFlow {
                     OutlinedButton(onClick = { editing = m }) { Text("Bearbeiten") }
                     if (active) {
                         OutlinedButton(onClick = { replacing = m }) { Text("Ändern") }

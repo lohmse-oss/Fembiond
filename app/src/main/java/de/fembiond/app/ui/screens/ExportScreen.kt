@@ -63,7 +63,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     var range by remember { mutableStateOf<RangeOption>(RangeOption.Months(6)) }
     var categories by remember { mutableStateOf(Category.entries.toSet()) }
     val (from, to) = range.range(data)
-    val input = AnalysisInput(data.summary, data.occurrences, data.panics, data.medications, data.gad, from, to, categories)
+    val input = AnalysisInput(data.summary, data.occurrences, data.episodes, data.medications, data.gad, from, to, categories, events = data.events)
     val result = remember(data, from, to, categories) { Analytics.analyze(input) }
 
     var passwordFor by remember { mutableStateOf<String?>(null) } // "backup" | "restore"
@@ -73,7 +73,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     fun agentText(): String {
         val notes = data.entries.filter { it.note.isNotBlank() && !it.time.toLocalDate().isBefore(from) && !it.time.toLocalDate().isAfter(to) }
             .map { it.time.toLocalDate() to it.note }.sortedBy { it.first }
-        return AgentExport.build(input, result, data.settings.age, data.intakes, notes, data.today)
+        return AgentExport.build(input, result, data.age, data.intakes, notes, data.today, data.mrs)
     }
 
     val createBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
@@ -93,7 +93,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
     }
     val savePdf = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) scope.launch {
-            withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { PdfReport(input, result, data.settings.age).write(it) } }
+            withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri)!!.use { PdfReport(input, result, data.age, data.mrs).write(it) } }
             toast(context, "Bericht gespeichert")
         }
     }
@@ -103,8 +103,8 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         HintText("Zeitraum ${from.short()} – ${to.short()}. Exporte enthalten keine Namen. Geteilt wird nur, was du selbst teilst.")
 
         SectionCard(title = "Für einen KI-Agenten", icon = Icons.Rounded.SmartToy) {
-            HintText("Strukturierter Text mit Erklärung der Daten und eingebettetem JSON: Zyklen, Abweichungen, Perimenopause-Einordnung, Einträge pro Zyklustag, Panikattacken, Medikation und errechnete Zusammenhänge.")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            HintText("Strukturierter Text mit Erklärung der Daten und eingebettetem JSON: Zyklen, Abweichungen, Perimenopause-Einordnung, Einträge pro Zyklustag, Unruhe-Episoden mit Stufen, Ereignisse, Medikation und errechnete Zusammenhänge.")
+            de.fembiond.app.ui.ChipFlow {
                 Button(onClick = {
                     val send = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, agentText()) }
                     context.startActivity(Intent.createChooser(send, "Daten teilen"))
@@ -118,13 +118,13 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
         }
 
         SectionCard(title = "Arztbericht (PDF)", icon = Icons.Rounded.PictureAsPdf) {
-            HintText("Übersicht mit Zyklusdiagramm, Medikation, Panikattacken nach Phase, Vergleich vor/nach der Periode und Häufigkeiten nach Zyklustag.")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            HintText("Übersicht mit Zyklusdiagramm, Medikation, Unruhe nach Phase und rund um Ereignisse, Vergleich vor/nach der Periode und Häufigkeiten nach Zyklustag.")
+            de.fembiond.app.ui.ChipFlow {
                 Button(onClick = {
                     scope.launch {
                         val file = withContext(Dispatchers.IO) {
                             val dir = File(context.cacheDir, "exports").apply { mkdirs() }
-                            File(dir, "fembiond-bericht-${data.today}.pdf").also { f -> f.outputStream().use { PdfReport(input, result, data.settings.age).write(it) } }
+                            File(dir, "fembiond-bericht-${data.today}.pdf").also { f -> f.outputStream().use { PdfReport(input, result, data.age, data.mrs).write(it) } }
                         }
                         val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
                         val send = Intent(Intent.ACTION_SEND).apply {
@@ -139,7 +139,7 @@ fun ExportScreen(vm: AppViewModel, data: AppData, nav: NavController) {
 
         SectionCard(title = "Sicherung", icon = Icons.Rounded.Backup) {
             HintText("Da es keine Cloud gibt, gehen bei Verlust des Handys alle Daten verloren. Lege regelmäßig eine passwortgeschützte Sicherung an, z. B. auf einem USB-Stick oder Computer.")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            de.fembiond.app.ui.ChipFlow {
                 FilledTonalButton(onClick = { passwordFor = "backup" }) { Text("Sicherung erstellen") }
                 OutlinedButton(onClick = { openBackup.launch(arrayOf("*/*")) }) { Text("Wiederherstellen") }
             }

@@ -59,7 +59,8 @@ import de.fembiond.app.ui.screens.HomeScreen
 import de.fembiond.app.ui.screens.MedicationScreen
 import de.fembiond.app.ui.screens.MoreScreen
 import de.fembiond.app.ui.screens.OnboardingScreen
-import de.fembiond.app.ui.screens.PanicScreen
+import de.fembiond.app.ui.screens.UnrestScreen
+import de.fembiond.app.ui.screens.EventsScreen
 import de.fembiond.app.ui.screens.SettingsScreen
 import de.fembiond.app.ui.screens.TermsScreen
 import de.fembiond.app.ui.theme.FembiondTheme
@@ -132,7 +133,13 @@ object Routes {
     const val ANALYSIS = "analysis"
     const val MORE = "more"
     const val ENTRY = "entry?day={day}&note={note}"
-    const val PANIC = "panic"
+    const val UNREST = "unrest?event={event}&day={day}"
+    const val EVENTS = "events"
+    const val ABOUT = "about"
+    const val MRS = "mrs"
+    const val WEEKLY = "weekly"
+    const val GUIDE = "guide?open={open}"
+    fun guide(open: String? = null) = "guide?open=${open ?: ""}"
     const val DAY = "day/{day}"
     const val MEDS = "meds"
     const val EXPORT = "export"
@@ -143,6 +150,7 @@ object Routes {
 
     fun entry(day: LocalDate? = null, note: Boolean = false) = "entry?day=${day?.toEpochDay() ?: -1}&note=$note"
     fun day(d: LocalDate) = "day/${d.toEpochDay()}"
+    fun unrest(eventId: Long? = null, day: LocalDate? = null) = "unrest?event=${eventId ?: -1}&day=${day?.toEpochDay() ?: -1}"
 }
 
 private data class Tab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
@@ -176,7 +184,13 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
             }
         },
     ) { pad ->
-        NavHost(nav, Routes.HOME, Modifier.padding(bottom = pad.calculateBottomPadding())) {
+        NavHost(
+            nav, Routes.HOME, Modifier.padding(bottom = pad.calculateBottomPadding()),
+            enterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) + androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(260)) { it / 12 } },
+            exitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) },
+            popEnterTransition = { androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220)) },
+            popExitTransition = { androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)) + androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { it / 12 } },
+        ) {
             composable(Routes.HOME) { HomeScreen(vm, data, nav) }
             composable(Routes.CALENDAR) { CalendarScreen(data, nav) }
             composable(Routes.ANALYSIS) { AnalysisScreen(data, nav) }
@@ -186,7 +200,16 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?) {
                 val note = b.arguments?.getString("note") == "true"
                 EntryScreen(vm, data, nav, day, note)
             }
-            composable(Routes.PANIC) { PanicScreen(vm, data, nav) }
+            composable(Routes.UNREST) { b ->
+                val ev = b.arguments?.getString("event")?.toLongOrNull()?.takeIf { it >= 0 }
+                val day = b.arguments?.getString("day")?.toLongOrNull()?.takeIf { it >= 0 }?.let(LocalDate::ofEpochDay)
+                UnrestScreen(vm, data, nav, ev, day)
+            }
+            composable(Routes.EVENTS) { EventsScreen(vm, data, nav) }
+            composable(Routes.MRS) { de.fembiond.app.ui.screens.MrsScreen(vm, data, nav) }
+            composable(Routes.WEEKLY) { de.fembiond.app.ui.screens.WeeklyReviewScreen(data, nav) }
+            composable(Routes.ABOUT) { de.fembiond.app.ui.screens.AboutScreen(data, nav) }
+            composable(Routes.GUIDE) { b -> de.fembiond.app.ui.screens.GuideScreen(nav, b.arguments?.getString("open")?.takeIf { it.isNotBlank() }) }
             composable(Routes.DAY) { b ->
                 DayScreen(vm, data, nav, LocalDate.ofEpochDay(b.arguments?.getString("day")!!.toLong()))
             }

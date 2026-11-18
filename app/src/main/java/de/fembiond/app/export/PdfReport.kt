@@ -7,13 +7,14 @@ import android.graphics.pdf.PdfDocument
 import de.fembiond.app.domain.AnalysisInput
 import de.fembiond.app.domain.AnalysisResult
 import de.fembiond.app.domain.Phase
+import de.fembiond.app.domain.de1
 import java.io.OutputStream
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 /** Arztbericht als PDF (A4), komplett lokal erzeugt. */
-class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult, private val age: Int?) {
+class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult, private val age: Int?, private val mrs: List<de.fembiond.app.domain.MrsRecord> = emptyList()) {
 
     private val doc = PdfDocument()
     private var page: PdfDocument.Page? = null
@@ -75,11 +76,11 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
         newPage()
         c.drawText("Zyklus- & Befindlichkeitsbericht", margin, y + 18f, title); y += 30f
         text("Zeitraum ${input.from.format(fmt)} – ${input.to.format(fmt)}" + (age?.let { " · Alter $it Jahre" } ?: "") + " · erstellt am ${LocalDate.now().format(fmt)}", small)
-        text("${r.trackedDays} Tage mit Einträgen · ${r.panicTotal} Panikattacken im Zeitraum", small)
+        text("${r.trackedDays} Tage mit Einträgen · ${r.unrestTotal} Unruhe-Episoden, davon ${r.panicTotal} Panikattacken", small)
 
         val s = input.summary
         heading("Zyklus")
-        text("Üblicher Zyklus ${s.baselineLength} Tage (Schwankung ± ${"%.1f".format(s.baselineVariability)}), Periode ca. ${s.baselinePeriodLength} Tage, ${s.naturalCompleteCount} vollständige Zyklen ohne Medikation.")
+        text("Üblicher Zyklus ${s.baselineLength} Tage (Schwankung ± ${de1(s.baselineVariability)}), Periode ca. ${s.baselinePeriodLength} Tage, ${s.naturalCompleteCount} vollständige Zyklen ohne Medikation.")
         text("Einordnung nach STRAW+10: ${s.straw.label}. ${s.straw.description}")
         s.current?.let { text("Aktuell Zyklustag ${it.cycleDay} (${it.phase.label}). Nächste Periode erwartet ${it.prediction.from.format(fmt)} – ${it.prediction.to.format(fmt)}" + if (it.prediction.withdrawalBleed) " (Abbruchblutung nach Schema)." else ".") }
         val bars = r.cycles.bars.takeLast(14)
@@ -112,12 +113,23 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
                 r.compare.forEach { cmp ->
                     text("${cmp.label}: " + listOfNotNull(
                         "${cmp.trackedDays} Tage",
-                        cmp.panicPer30?.let { "Panik ${"%.1f".format(it)}/30 Tage" },
-                        cmp.meanSleep?.let { "Schlaf Ø ${"%.1f".format(it)}/5" },
-                        cmp.meanEnergy?.let { "Energie Ø ${"%.1f".format(it)}/5" },
+                        cmp.unrestPer30?.let { "Unruhe ${de1(it)}/30 Tage" },
+                        cmp.meanUnrestLevel?.let { "Ø Stufe ${de1(it)}" },
+                        cmp.panicPer30?.let { "Panik ${de1(it)}/30 Tage" },
+                        cmp.meanSleep?.let { "Schlaf Ø ${de1(it)}/5" },
+                        cmp.meanEnergy?.let { "Energie Ø ${de1(it)}/5" },
                         cmp.medianCycle?.let { "Zyklus ${it.roundToInt()} T." },
                     ).joinToString(", "), indent = 8f)
                 }
+            }
+        }
+
+        val hot = input.occurrences.filter { it.term in de.fembiond.app.domain.PeriStats.HOT_TERMS && !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }
+        if (hot.isNotEmpty() || mrs.isNotEmpty()) {
+            heading("Perimenopause")
+            if (hot.isNotEmpty()) text("Hitzewallungen/Nachtschweiß im Zeitraum: ${hot.size}× an ${hot.map { it.date }.toSet().size} Tagen.")
+            mrs.sortedBy { it.date }.takeLast(6).forEach { m ->
+                text("MRS ${m.date.format(fmt)}: ${m.total}/44 (körperlich ${m.somatic}, psychisch ${m.psychological}, urogenital ${m.urogenital}) – ${de.fembiond.app.domain.Mrs.severity(m.total)}")
             }
         }
 
@@ -125,20 +137,47 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
         if (r.insights.isEmpty()) text("Noch zu wenige Daten für automatische Aussagen.")
         r.insights.forEach { text("• $it") }
 
-        heading("Panikattacken nach Zyklusphase")
-        if (r.panicTotal == 0) text("Keine Panikattacken im Zeitraum.") else {
-            val max = r.panicByPhase.maxOf { it.count }.coerceAtLeast(1)
-            r.panicByPhase.forEach { p ->
+        heading("Unruhe nach Zyklusphase")
+        if (r.unrestTotal == 0) text("Keine Unruhe-Episoden im Zeitraum.") else {
+            text("Stufen: 1 leicht · 2 spürbar · 3 stark · 4 sehr stark · 5 Panikattacke. Verteilung: " +
+                r.levelCounts.mapIndexed { i, n -> "Stufe ${i + 1}: $n" }.joinToString(", "), small)
+            val max = r.unrestByPhase.maxOf { it.count }.coerceAtLeast(1)
+            r.unrestByPhase.forEach { p ->
                 ensure(16f)
                 c.drawText(p.phase.label, margin, y + 10f, body)
                 fill.color = phaseColor(p.phase)
-                c.drawRect(margin + 100f, y + 2f, margin + 100f + 220f * p.count / max, y + 11f, fill)
-                c.drawText("${p.count}" + (p.meanIntensity?.let { " · Ø Stärke ${"%.1f".format(it)}" } ?: "") + (p.relativeFrequency?.let { " · ${"%.1f".format(it)}× häufiger als Ø" } ?: ""), margin + 330f, y + 10f, small)
+                c.drawRect(margin + 100f, y + 2f, margin + 100f + 200f * p.count / max, y + 11f, fill)
+                c.drawText("${p.count}" + (p.meanLevel?.let { " · Ø Stufe ${de1(it)}" } ?: "") +
+                    (if (p.panicCount > 0) " · ${p.panicCount}× Panik" else "") +
+                    (p.relativeFrequency?.let { " · ${de1(it)}×" } ?: ""), margin + 310f, y + 10f, small)
                 y += 15f
             }
-            val symptoms = input.panics.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }.flatMap { it.symptoms }
+            val symptoms = input.episodes.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }.flatMap { it.symptoms }
                 .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(6)
-            if (symptoms.isNotEmpty()) text("Häufigste Symptome: " + symptoms.joinToString { "${it.key} (${it.value})" }, small)
+            if (symptoms.isNotEmpty()) text("Häufigste körperliche Anzeichen: " + symptoms.joinToString { "${it.key} (${it.value})" }, small)
+            val helped = input.episodes.filter { !it.date.isBefore(input.from) && !it.date.isAfter(input.to) }.flatMap { it.helped }
+                .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(5)
+            if (helped.isNotEmpty()) text("Was geholfen hat: " + helped.joinToString { "${it.key} (${it.value})" }, small)
+        }
+
+        val ant = r.anticipation.filter { it.events > 0 }
+        if (ant.isNotEmpty()) {
+            heading("Unruhe rund um Ereignisse")
+            text("Ø höchste Unruhe-Stufe je Tag relativ zum Ereignis (0 = Ereignistag), über ${ant.maxOf { it.events }} Ereignisse.", small)
+            val bw = (w - 2 * margin) / ant.size
+            ensure(70f)
+            ant.forEachIndexed { i, a ->
+                val v = (a.meanMaxLevel ?: 0.0) / 5.0
+                fill.color = if (a.offset == 0) berry else Color.argb(170, 123, 63, 115)
+                c.drawRect(margin + i * bw + 4, y + 50f - (50f * v).toFloat(), margin + (i + 1) * bw - 4, y + 50f, fill)
+                c.drawText(if (a.offset == 0) "Tag 0" else "%+d".format(a.offset), margin + i * bw + 6, y + 62f, small)
+            }
+            y += 70f
+            r.eventTypes.take(8).forEach { t ->
+                text("• ${t.type}: ${t.events} Ereignisse, Unruhe vorher in ${(t.shareWithUnrest * 100).roundToInt()} %, Ø Stufe ${de1(t.meanMaxLevel)}" +
+                    (if (t.panics > 0) ", ${t.panics}× Panik" else "") + (if (t.cancelled > 0) ", ${t.cancelled}× abgesagt oder früher gegangen" else ""))
+            }
+            r.eventPhases.forEach { p -> text("${p.label}: ${p.events} Ereignisse, Ø Stufe ${de1(p.meanMaxLevel)}", small, 8f) }
         }
 
         val drsp = r.drsp.take(10)
@@ -146,7 +185,7 @@ class PdfReport(private val input: AnalysisInput, private val r: AnalysisResult,
             heading("Vor der Periode vs. danach (DRSP-Methode)")
             text("Mittlere Stärke 0–5: 7 Tage vor der Periode gegenüber Zyklustag 4–10. * = mind. 30 % stärker bei 2+ Zyklen.", small)
             drsp.forEach { d ->
-                text("${if (d.significant) "* " else "  "}${d.term}: ${"%.1f".format(d.premenstrual)} vs. ${"%.1f".format(d.postmenstrual)}" +
+                text("${if (d.significant) "* " else "  "}${d.term}: ${de1(d.premenstrual)} vs. ${de1(d.postmenstrual)}" +
                     (d.changePercent?.let { " (${if (it >= 0) "+" else ""}${it.roundToInt()} %)" } ?: " (nur prämenstruell)"))
             }
         }

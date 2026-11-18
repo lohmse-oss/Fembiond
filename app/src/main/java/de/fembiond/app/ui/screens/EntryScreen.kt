@@ -139,6 +139,7 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
     Screen(
         title = if (noteMode) "Notiz" else "Wie geht es dir?",
         nav = nav,
+        actions = { IconButton(onClick = { nav.navigate(de.fembiond.app.Routes.guide(if (noteMode) "note" else "entry")) }) { Icon(androidx.compose.material.icons.Icons.Rounded.HelpOutline, "Hilfe") } },
         bottomBar = {
             Surface(tonalElevation = 3.dp) {
                 Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

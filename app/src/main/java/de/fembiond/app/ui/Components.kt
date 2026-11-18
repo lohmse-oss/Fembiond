@@ -1,6 +1,9 @@
 package de.fembiond.app.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +18,8 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -27,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Medication
@@ -89,6 +95,7 @@ fun Category.icon(): ImageVector = when (this) {
     Category.PANIC_SYMPTOM -> Icons.Rounded.MonitorHeart
     Category.PANIC_TRIGGER -> Icons.Rounded.TrackChanges
     Category.PANIC_HELP -> Icons.Rounded.SelfImprovement
+    Category.EVENT_TYPE -> Icons.Rounded.Event
 }
 
 fun Phase.icon(): ImageVector = when (this) {
@@ -111,7 +118,7 @@ fun SectionCard(
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = container),
     ) {
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.animateContentSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (title != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (icon != null) {
@@ -127,13 +134,15 @@ fun SectionCard(
 }
 
 @Composable
-fun HintText(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier = modifier, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun HintText(text: String, modifier: Modifier = Modifier, center: Boolean = false) {
+    Text(text, modifier = modifier, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = if (center) TextAlign.Center else null)
 }
 
 /** Intensität 1–5 als fünf antippbare Punkte. */
 @Composable
 fun IntensitySelector(value: Int?, onChange: (Int?) -> Unit, modifier: Modifier = Modifier) {
+    val haptic = LocalHapticFeedback.current
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         for (i in 1..5) {
             val active = value != null && i <= value
@@ -142,7 +151,7 @@ fun IntensitySelector(value: Int?, onChange: (Int?) -> Unit, modifier: Modifier 
                     .size(32.dp)
                     .clip(CircleShape)
                     .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest)
-                    .clickable { onChange(if (value == i) null else i) }
+                    .clickable { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); onChange(if (value == i) null else i) }
                     .semantics { contentDescription = "Intensität $i" },
                 contentAlignment = Alignment.Center,
             ) {
@@ -179,9 +188,10 @@ fun TermChip(
     onClick: () -> Unit,
     icon: ImageVector? = null,
 ) {
+    val haptic = LocalHapticFeedback.current
     FilterChip(
         selected = selected,
-        onClick = onClick,
+        onClick = { haptic.performHapticFeedback(if (selected) HapticFeedbackType.ToggleOff else HapticFeedbackType.ToggleOn); onClick() },
         label = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -236,102 +246,37 @@ fun PhaseLegend(modifier: Modifier = Modifier) {
     }
 }
 
-/**
- * Zyklusring: ein Segment pro Zyklustag in Phasenfarbe. Vergangene Tage kräftig, zukünftige blass,
- * fruchtbares Fenster als Außenband, Einnahmetage als Innenmarken, heute als Punkt.
- */
-@Composable
-fun CycleRing(state: CurrentState, medicationDays: Set<Int>, modifier: Modifier = Modifier, center: @Composable () -> Unit) {
-    val pc = LocalPhaseColors.current
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    val marker = MaterialTheme.colorScheme.onSurface
-    val medColor = MaterialTheme.colorScheme.tertiary
-    val total = max(state.expectedLength, state.cycleDay)
-    val periodLen = if (state.inPeriod) max(state.cycleDay, 1) else 0
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.matchParentSizeCompat()) {
-            val stroke = size.minDimension * 0.075f
-            val radius = size.minDimension / 2 - stroke * 1.4f
-            val c = Offset(size.width / 2, size.height / 2)
-            val sweep = 360f / total
-            val gap = min(1.6f, sweep * 0.25f)
-            drawCircle(track, radius, c, style = Stroke(stroke))
-            for (d in 1..total) {
-                val length = state.expectedLength
-                val pLen = if (state.inPeriod) max(periodLen, 1) else min(5, length)
-                val phase = CycleEngine.phaseFor(d, max(length, d), pLen)
-                val base = pc.of(phase)
-                val color = if (d <= state.cycleDay) base else base.copy(alpha = 0.35f)
-                drawArc(
-                    color = color,
-                    startAngle = -90f + (d - 1) * sweep + gap / 2,
-                    sweepAngle = sweep - gap,
-                    useCenter = false,
-                    topLeft = Offset(c.x - radius, c.y - radius),
-                    size = Size(radius * 2, radius * 2),
-                    style = Stroke(stroke, cap = StrokeCap.Butt),
-                )
-                if (d in medicationDays) {
-                    val a = Math.toRadians((-90f + (d - 0.5f) * sweep).toDouble())
-                    val r1 = radius - stroke * 0.95f
-                    drawCircle(medColor, stroke * 0.14f, Offset(c.x + (r1 * cos(a)).toFloat(), c.y + (r1 * sin(a)).toFloat()))
-                }
-            }
-            state.fertileFrom?.let { ff ->
-                val fromDay = (ff.toEpochDay() - state.cycleStart.toEpochDay()).toInt() + 1
-                val toDay = (state.fertileTo!!.toEpochDay() - state.cycleStart.toEpochDay()).toInt() + 1
-                val outer = radius + stroke * 0.95f
-                drawArc(
-                    color = pc.ovulation.copy(alpha = 0.6f),
-                    startAngle = -90f + (fromDay - 1) * sweep,
-                    sweepAngle = (toDay - fromDay + 1) * sweep,
-                    useCenter = false,
-                    topLeft = Offset(c.x - outer, c.y - outer),
-                    size = Size(outer * 2, outer * 2),
-                    style = Stroke(stroke * 0.22f, cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))),
-                )
-            }
-            val a = Math.toRadians((-90f + (state.cycleDay - 0.5f) * sweep).toDouble())
-            val p = Offset(c.x + (radius * cos(a)).toFloat(), c.y + (radius * sin(a)).toFloat())
-            drawCircle(Color.White, stroke * 0.62f, p)
-            drawCircle(marker, stroke * 0.62f, p, style = Stroke(stroke * 0.18f))
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) { center() }
-    }
-}
 
-private fun Modifier.matchParentSizeCompat(): Modifier = this.fillMaxWidth().aspectRatio(1f)
-
-/** Heatmap Begriff × Zyklustag – passt sich der Breite an, alle Tage sichtbar. */
+/** Heatmap Begriff × Zyklustag – Begriff über der Zeile, Zellen über die volle Breite. */
 @Composable
 fun HeatmapView(map: Heatmap, modifier: Modifier = Modifier) {
     val pc = LocalPhaseColors.current
     var selected by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    val labelWidth = 104.dp
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val cell = ((maxWidth - labelWidth) / map.maxDay).coerceAtMost(18.dp)
-        val rowH = maxOf(cell + 2.dp, 20.dp)
+        val cell = maxWidth / map.maxDay
         Column {
-            Row(Modifier.height(18.dp)) {
-                Spacer(Modifier.width(labelWidth))
-                for (d in 1..map.maxDay) {
-                    Box(Modifier.width(cell), contentAlignment = Alignment.Center) {
-                        if (d == 1 || d % 7 == 0) Text("$d", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
-                    }
+            Box(Modifier.fillMaxWidth().height(18.dp)) {
+                for (d in listOf(1, 7, 14, 21, 28, 35).filter { it <= map.maxDay }) {
+                    Text(
+                        "$d", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1, softWrap = false,
+                        modifier = Modifier.offset(x = cell * (d - 1)),
+                    )
                 }
             }
             map.rows.forEachIndexed { ri, r ->
-                Row(Modifier.height(rowH), verticalAlignment = Alignment.CenterVertically) {
-                    Text(r.term, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(labelWidth).padding(end = 6.dp))
+                Text(r.term, style = MaterialTheme.typography.labelMedium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp, bottom = 2.dp))
+                Row(Modifier.fillMaxWidth().height(14.dp)) {
                     r.cells.forEachIndexed { di, v ->
                         val isSel = selected == (ri to di)
                         Box(
                             Modifier
-                                .size(cell)
-                                .padding(0.75.dp)
-                                .clip(RoundedCornerShape(3.dp))
+                                .width(cell)
+                                .fillMaxHeight()
+                                .padding(horizontal = 0.5.dp)
+                                .clip(RoundedCornerShape(2.dp))
                                 .background(if (map.trackedPerDay[di] == 0.0) MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.4f) else lerp(pc.heatLow, pc.heatHigh, v.toFloat().coerceIn(0f, 1f)))
-                                .then(if (isSel) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(3.dp)) else Modifier)
+                                .then(if (isSel) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(2.dp)) else Modifier)
                                 .clickable { selected = if (isSel) null else ri to di }
                         )
                     }
@@ -345,8 +290,8 @@ fun HeatmapView(map: Heatmap, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(top = 8.dp),
                 )
             }
-            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("selten", style = MaterialTheme.typography.labelSmall)
+            Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Zyklustag →  selten", style = MaterialTheme.typography.labelSmall)
                 Spacer(Modifier.width(6.dp))
                 for (i in 0..4) Box(Modifier.padding(1.dp).size(12.dp).clip(RoundedCornerShape(3.dp)).background(lerp(pc.heatLow, pc.heatHigh, i / 4f)))
                 Spacer(Modifier.width(6.dp))
@@ -399,8 +344,8 @@ fun RatioBar(label: String, value: Double, valueText: String, color: Color, icon
     Column(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) { Icon(icon, null, tint = color, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp)) }
-            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            Text(valueText, style = MaterialTheme.typography.labelLarge)
+            Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(end = 8.dp))
+            Text(valueText, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
         }
         Box(Modifier.padding(top = 4.dp).fillMaxWidth().height(10.dp).clip(RoundedCornerShape(5.dp)).background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
             Box(Modifier.fillMaxWidth(value.toFloat().coerceIn(0f, 1f)).height(10.dp).clip(RoundedCornerShape(5.dp)).background(color))
@@ -413,5 +358,30 @@ fun BigNumber(value: String, label: String, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
         Text(label, style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Farbe je Unruhe-Stufe 1–5 (5 = Panikattacke). */
+@Composable
+fun unrestColor(level: Int): Color {
+    val dark = MaterialTheme.colorScheme.background.luminanceCompat() < 0.3f
+    return when (level) {
+        1 -> if (dark) Color(0xFFC5B6F2) else Color(0xFF7E6BC0)
+        2 -> if (dark) Color(0xFFD7A6CF) else Color(0xFF8E4F86)
+        3 -> if (dark) Color(0xFFFFB68E) else Color(0xFFC0602A)
+        4 -> if (dark) Color(0xFFFF9A7A) else Color(0xFFB3401F)
+        else -> MaterialTheme.colorScheme.error
+    }
+}
+
+private fun Color.luminanceCompat(): Float = 0.2126f * red + 0.7152f * green + 0.0722f * blue
+
+/** Runder Stufen-Badge mit Zahl. */
+@Composable
+fun LevelBadge(level: Int, size: androidx.compose.ui.unit.Dp = 28.dp) {
+    val c = unrestColor(level)
+    Box(Modifier.size(size).clip(CircleShape).background(c), contentAlignment = Alignment.Center) {
+        Text("$level", color = if (MaterialTheme.colorScheme.background.luminanceCompat() < 0.3f) Color(0xFF22191C) else Color.White,
+            style = MaterialTheme.typography.labelLarge)
     }
 }

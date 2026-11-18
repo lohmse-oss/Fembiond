@@ -91,6 +91,43 @@ interface FembiondDao {
     @Query("SELECT pt.panicId, t.label, t.category FROM panic_terms pt JOIN terms t ON t.id = pt.termId")
     fun panicTerms(): Flow<List<PanicTermRow>>
 
+    // Ereignisse
+    @Query("SELECT * FROM events ORDER BY day")
+    fun events(): Flow<List<EventEntity>>
+
+    @Upsert
+    suspend fun upsertEvent(e: EventEntity): Long
+
+    @Query("DELETE FROM events WHERE id = :id")
+    suspend fun deleteEvent(id: Long)
+
+    @Query("UPDATE panics SET eventId = NULL WHERE eventId = :id")
+    suspend fun unlinkEvent(id: Long)
+
+    @Query("SELECT * FROM events") suspend fun allEvents(): List<EventEntity>
+    @Query("DELETE FROM events") suspend fun clearEvents()
+    @Insert suspend fun restoreEvents(l: List<EventEntity>)
+
+    // MRS
+    @Query("SELECT * FROM mrs ORDER BY day")
+    fun mrs(): Flow<List<MrsEntity>>
+
+    @Insert
+    suspend fun insertMrs(m: MrsEntity)
+
+    @Query("SELECT * FROM mrs") suspend fun allMrs(): List<MrsEntity>
+    @Query("DELETE FROM mrs") suspend fun clearMrs()
+    @Insert suspend fun restoreMrs(l: List<MrsEntity>)
+
+    // Profil
+    @Query("SELECT * FROM profile WHERE id = 1")
+    fun profile(): Flow<ProfileEntity?>
+
+    @Upsert
+    suspend fun upsertProfile(p: ProfileEntity)
+
+    @Query("SELECT * FROM profile WHERE id = 1") suspend fun profileOnce(): ProfileEntity?
+
     // Medikation
     @Query("SELECT * FROM med_phases ORDER BY start")
     fun medPhases(): Flow<List<MedPhaseEntity>>
@@ -145,6 +182,6 @@ interface FembiondDao {
 
     @Transaction
     suspend fun clearAll() {
-        clearEntries(); clearPanics(); clearMeds(); clearGad(); clearSynonyms(); clearTerms(); clearPeriods()
+        clearEntries(); clearPanics(); clearEvents(); clearMrs(); clearMeds(); clearGad(); clearSynonyms(); clearTerms(); clearPeriods()
     }
 }

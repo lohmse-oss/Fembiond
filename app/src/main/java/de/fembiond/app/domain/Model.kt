@@ -2,6 +2,10 @@ package de.fembiond.app.domain
 
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.Locale
+
+/** Zahl mit einer Nachkommastelle, deutsches Format (Komma). */
+fun de1(v: Double?): String = String.format(Locale.GERMANY, "%.1f", v ?: 0.0)
 
 /** Kategorien für Begriffe. [label] ist der Anzeigename. */
 enum class Category(val label: String, val shortLabel: String) {
@@ -12,12 +16,13 @@ enum class Category(val label: String, val shortLabel: String) {
     BLEEDING("Blutung", "Blutung"),
     LIFE("Lebensumstände", "Leben"),
     MEDICATION_EFFECT("Medikation & Nebenwirkungen", "Medikation"),
-    PANIC_SYMPTOM("Panik: Symptome", "Symptome"),
-    PANIC_TRIGGER("Panik: Auslöser", "Auslöser"),
-    PANIC_HELP("Panik: Was geholfen hat", "Hilfe");
+    PANIC_SYMPTOM("Unruhe: Körperliche Anzeichen", "Anzeichen"),
+    PANIC_TRIGGER("Unruhe: Auslöser", "Auslöser"),
+    PANIC_HELP("Unruhe: Was geholfen hat", "Hilfe"),
+    EVENT_TYPE("Ereignisart", "Ereignis");
 
     /** Kategorien, die im normalen Tageseintrag erscheinen. */
-    val isDaily: Boolean get() = this !in setOf(PANIC_SYMPTOM, PANIC_TRIGGER, PANIC_HELP)
+    val isDaily: Boolean get() = this !in setOf(PANIC_SYMPTOM, PANIC_TRIGGER, PANIC_HELP, EVENT_TYPE)
 }
 
 /** Bewertung eines Ereignisses (Lebensumstände). */
@@ -96,18 +101,54 @@ data class TermOccurrence(
     val date: LocalDate get() = time.toLocalDate()
 }
 
-data class PanicRecord(
+/** Stufen der Unruhe – die höchste Stufe ist die Panikattacke. */
+enum class UnrestLevel(val level: Int, val label: String, val description: String) {
+    MILD(1, "leicht", "innerlich etwas angespannt, gut auszuhalten"),
+    NOTICEABLE(2, "spürbar", "Gedanken kreisen, Ablenkung fällt schwer"),
+    STRONG(3, "stark", "körperliche Anzeichen wie Herzklopfen, Zittern, Magen"),
+    SEVERE(4, "sehr stark", "kurz vor der Panik, Drang abzusagen oder zu flüchten"),
+    PANIC(5, "Panikattacke", "Kontrollverlust, Herzrasen, Atemnot");
+
+    companion object {
+        fun of(level: Int): UnrestLevel = entries.firstOrNull { it.level == level } ?: STRONG
+    }
+}
+
+/** Eine Unruhe-Episode (Stufe 1–5, Stufe 5 = Panikattacke), optional mit Bezug zu einem Ereignis. */
+data class Episode(
     val id: Long = 0,
     val time: LocalDateTime,
     val durationMinutes: Int?,
-    val intensity: Int,
+    val level: Int,
     val symptoms: List<String>,
     val triggers: List<String>,
     val helped: List<String>,
     val note: String = "",
     val backfilled: Boolean = false,
+    val eventId: Long? = null,
 ) {
     val date: LocalDate get() = time.toLocalDate()
+    val isPanic: Boolean get() = level >= 5
+    val unrestLevel: UnrestLevel get() = UnrestLevel.of(level)
+}
+
+enum class EventOutcome(val label: String) {
+    PLANNED("geplant"),
+    ATTENDED("war dort"),
+    LEFT_EARLY("früher gegangen"),
+    CANCELLED("abgesagt");
+}
+
+/** Ein anstehendes oder vergangenes Ereignis (Feier, Essen gehen, Konzert …). */
+data class PlannedEvent(
+    val id: Long = 0,
+    val date: LocalDate,
+    val type: String,
+    val title: String = "",
+    val note: String = "",
+    val outcome: EventOutcome = EventOutcome.PLANNED,
+) {
+    val displayName: String get() = title.ifBlank { type }
 }
 
 data class GadRecord(val date: LocalDate, val score: Int)
