@@ -54,7 +54,9 @@ object Reminders {
             .setAutoCancel(true)
         actions.forEach { b.addAction(0, it.label, it.intent) }
         val n = b.build()
-        runCatching { NotificationManagerCompat.from(context).notify(id, n) }
+        val allowed = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (allowed) runCatching { NotificationManagerCompat.from(context).notify(id, n) }
     }
 }
 

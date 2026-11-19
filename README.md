@@ -15,7 +15,7 @@ Die vollständige Spezifikation steht in [`docs/SPEZIFIKATION.md`](docs/SPEZIFIK
   Einordnung Perimenopause nach STRAW+10. Die Phase kann auch manuell gesetzt werden (Tipp auf die Phase).
 - **Schnelle Eingabe:** Freitext oder Sprache. Begriffe werden automatisch erkannt und kategorisiert, inklusive
   Intensität 1–5, Verneinungen und Tippfehlern. Unbekannte Wörter lassen sich zuordnen, die App lernt mit.
-- **Kategorien:** Stimmung & Geist, Körper, Perimenopause, Schlaf & Energie, Blutung, Lebensumstände, Medikation.
+- **Kategorien:** Beschwerden nur nach Psyche und Körper; Lebensumstände, Medikation. Die Einordnung in Periode, PMS oder Perimenopause erfolgt erst in der Auswertung.
 - **Unruhe in Stufen:** 1 leicht bis 5 Panikattacke, mit Anzeichen, Auslösern, Hilfen und Bezug zu Ereignissen.
 - **Ereignisse:** Feiern, Essen gehen, Konzerte planen, mit Zyklusphase am Ereignistag und Auswertung der Unruhe davor.
 - **Notizen:** Freitext wird interpretiert, äußere Umstände landen in „Lebensumstände“ (belastend/neutral/positiv).

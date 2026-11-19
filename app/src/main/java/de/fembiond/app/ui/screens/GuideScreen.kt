@@ -113,11 +113,13 @@ object Guide {
 """.trimIndent()),
         GuideSection("entry", "Befinden eintragen – Text & Sprache", Icons.Rounded.Mic, """
 - Tippe auf **Wie geht es dir gerade?** und schreibe oder sprich frei, z. B. „ziemlich müde, Kopfweh, innere Unruhe Stärke 3“.
-- Die App erkennt Begriffe automatisch und ordnet sie Kategorien zu – auch Umgangssprache („Kopfweh“), Tippfehler und Verneinungen („keine Kopfschmerzen“).
+- Beschwerden gibt es nur in zwei Gruppen: **Psyche** und **Körper**. Ob etwas zur Periode, zu PMS oder zur Perimenopause gehört, musst du beim Eintragen nicht entscheiden – das ordnet die Auswertung unter **Einordnung** zu.
+- Die App erkennt Begriffe automatisch und ordnet sie zu – auch Umgangssprache („Kopfweh“), Tippfehler und Verneinungen („keine Kopfschmerzen“).
 - Wörter wie „leicht“, „ziemlich“, „extrem“ oder „Stärke drei“ setzen die **Intensität 1–5**. Du kannst sie unter „Erfasst – bitte prüfen“ anpassen.
 - Bei Ein-Tipp-Beschwerden (Plus-Menü, Karte Perimenopause) fragt die App nach dem Antippen direkt „Wie stark?“. „Ohne Stärke“ speichert sofort.
 - **Nicht erkannte Wörter** antippen, um sie als eigenen Begriff zu speichern oder einem vorhandenen zuzuordnen. Die App merkt sich das.
-- Unter den Kategorien findest du Vorschläge als Chips – häufig und zuletzt Genutztes steht vorne.
+- Unter Psyche, Körper, Leben und Medikation findest du Vorschläge als Chips – häufig und zuletzt Genutztes steht vorne. Schlafqualität und Energie stehen bei Körper.
+- Beim Anlegen eines **eigenen Begriffs** prüft die App, ob es ihn oder einen ähnlichen schon gibt (auch mit Tippfehlern oder anderer Wortform, z. B. „Schmerzen im Bein“ und „Beinschmerzen“), und zeigt, ob er in der Vorauswahl steht oder ausgeblendet ist. Mit „Verwenden“ nimmst du den vorhandenen.
 - Über das Datum unten links trägst du für vergangene Tage nach.
 """.trimIndent()),
         GuideSection("note", "Notizen & Lebensumstände", Icons.Rounded.EditNote, """
@@ -153,8 +155,9 @@ object Guide {
 - Tag antippen für Details, Löschen, Nachtragen und um Periodenbeginn oder -ende zu korrigieren.
 """.trimIndent()),
         GuideSection("analysis", "Auswertung verstehen", Icons.Rounded.Analytics, """
-- Die Auswertung ist in **Reiter** gegliedert: Überblick, Zyklus, Unruhe, PMS und Perimenopause. Reiter ohne Daten werden nicht angezeigt.
-- Oben wählst du **Zeitraum** (z. B. 6 Monate oder „unter Progesteron“) und **Bereiche** (Geist, Körper, Perimenopause, Schlaf, Leben, Medikation). Mit einem Bereich gefiltert, zeigt die Auswertung nur die passenden Karten – „Alle zeigen“ hebt den Filter auf.
+- Die Auswertung ist in **Reiter** gegliedert: Überblick, Einordnung, Zyklus, Unruhe, PMS und Perimenopause. Reiter ohne Daten werden nicht angezeigt.
+- **Einordnung**: Jede Beschwerde wird nach ihrem Muster im Zyklus zugeordnet – **übliche Periodenbeschwerden** (gehäuft während der Blutung, leicht bis mittel), **auffällig – ärztlich abklären** (z. B. starke Regelschmerzen in mehreren Zyklen, Blutung länger als 8 Tage, sehr starke Blutung, Zwischenblutungen, sehr kurze oder lange Zyklen; nach FIGO, ACOG, NICE), **PMS-Muster** (gehäuft in den 5 Tagen vor der Periode, danach seltener) und **spricht eher für Perimenopause** (ohne Phasenbezug, zunehmend oder in der Forschung typisch, z. B. Nachtschweiß; dazu Zyklusveränderungen nach STRAW+10). Der Balken zeigt, welcher Anteil der Tage auf Blutung, die 5 Tage davor und die übrigen Tage fällt.
+- Oben wählst du **Zeitraum** (z. B. 6 Monate oder „unter Progesteron“) und **Bereiche** (Psyche, Körper, Leben, Medikation). Mit einem Bereich gefiltert, zeigt die Auswertung nur die passenden Karten – „Alle zeigen“ hebt den Filter auf.
 - **Erkenntnisse** fassen auffällige Muster in Sätzen zusammen – mit Hinweis, wenn es noch zu wenige Daten gibt.
 - **Zykluslänge**: Balken pro Zyklus (Beere = Periode). Warnsymbol = deutliche Abweichung, Kapsel = unter Medikation.
 - **Wann tritt was auf?** (Heatmap): je dunkler, desto häufiger tritt ein Begriff an diesem Zyklustag auf. Feld antippen für Details.
@@ -168,8 +171,11 @@ object Guide {
 - Es erscheinen nur Auswertungen, zu denen es Einträge gibt. Je mehr du erfasst, desto mehr Bereiche kommen dazu.
 """.trimIndent()),
         GuideSection("terms", "Begriffe verwalten", Icons.AutoMirrored.Rounded.Label, """
-- Unter **Mehr → Begriffe verwalten** kannst du Begriffe umbenennen, einer anderen Kategorie zuordnen oder ausblenden.
-- Ausgeblendete Begriffe erscheinen nicht mehr als Vorschlag, bleiben aber in der Statistik erhalten.
+- Unter **Mehr → Begriffe verwalten** pflegst du alle Vorschlagslisten – Psyche, Körper, Leben, Medikation, Unruhe-Anzeichen, Auslöser, „Was geholfen hat“ und Ereignisarten.
+- Begriff antippen: **umbenennen**, **Kategorie ändern**, **zusammenführen** (alle Einträge wandern zum anderen Begriff, der alte Name wird weiter erkannt) oder **löschen** (nur wenn nie verwendet).
+- **Ausblenden** (Augen-Symbol): erscheint nicht mehr als Vorschlag, bleibt aber in der Statistik.
+- Filter **Nie genutzt**, **Selten** und **Ausgeblendet** helfen beim Aufräumen. Die Karte **Mögliche Doppelte** schlägt ähnliche Begriffe zum Zusammenführen vor.
+- Oben rechts **mehrere auswählen**, um sie gemeinsam auszublenden, zu löschen oder zusammenzuführen.
 """.trimIndent()),
         GuideSection("widget", "Widget einrichten", Icons.Rounded.Widgets, """
 - Startbildschirm lange gedrückt halten → **Widgets** → **Fembiond** → auf den Startbildschirm ziehen.

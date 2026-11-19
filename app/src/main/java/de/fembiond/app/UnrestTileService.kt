@@ -18,6 +18,7 @@ class UnrestTileService : TileService() {
         }
     }
 
+    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated") // nur unter Android 14 genutzt
     override fun onClick() {
         val intent = Intent(this, MainActivity::class.java)
             .putExtra(MainActivity.EXTRA_ROUTE, Routes.unrest())
