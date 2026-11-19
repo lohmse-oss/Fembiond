@@ -31,6 +31,8 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -260,6 +262,7 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
             data = data,
             initial = word,
             initialCategory = cat,
+            onUnhide = { t -> vm.run { updateTerm(t, hidden = false) } },
             onDismiss = { newTermFor = null },
             onNew = { label, c ->
                 val k = label to c
@@ -307,15 +310,51 @@ fun NewTermDialog(
     onDismiss: () -> Unit,
     onNew: (String, Category) -> Unit,
     onMap: ((String, Category) -> Unit)? = null,
+    /** Ausgeblendeten Begriff wieder einblenden, wenn er verwendet wird. */
+    onUnhide: ((de.fembiond.app.data.TermInfo) -> Unit)? = null,
 ) {
     var label by remember { mutableStateOf(initial.replaceFirstChar { it.uppercase() }) }
     var cat by remember { mutableStateOf(if (initialCategory in categories) initialCategory else categories.first()) }
+    // Prüfung auf Doppelte über alle angebotenen Kategorien (Psyche und Körper gemeinsam)
+    val pool = data.terms.filter { it.category in categories && it.label != de.fembiond.app.domain.ScaleTerms.SLEEP_QUALITY && it.label != de.fembiond.app.domain.ScaleTerms.ENERGY }
+    val synonyms = de.fembiond.app.domain.Lexicon.entries.filter { it.category in categories }.flatMap { e -> e.synonyms.map { Triple(it, e.label, e.category) } }
+    val similar = remember(label, pool) {
+        de.fembiond.app.domain.TermSimilarity.similar(label, pool.map { it.label to it.category }, synonyms)
+            .mapNotNull { s -> pool.firstOrNull { it.label == s.label && it.category == s.category }?.let { it to s } }
+    }
+    val exact = similar.firstOrNull { it.second.score >= 1.0 }?.first
+    fun use(t: de.fembiond.app.data.TermInfo) {
+        if (t.hidden) onUnhide?.invoke(t)
+        if (onMap != null && initial.isNotBlank()) onMap(t.label, t.category) else onNew(t.label, t.category)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initial.isBlank()) "Eigener Begriff" else "„$initial“ zuordnen") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(label, { label = it }, label = { Text("Begriff") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                if (similar.isNotEmpty()) {
+                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer)) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                if (exact != null) "Gibt es schon" else "Ähnliche vorhandene Begriffe",
+                                style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                            similar.forEach { (t, s) ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(t.label, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onTertiaryContainer)
+                                        Text(
+                                            "${t.category.shortLabel} · " + (if (t.hidden) "ausgeblendet" else "in der Vorauswahl") + if (s.score < 1.0) " · ${s.reason}" else "",
+                                            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                        )
+                                    }
+                                    TextButton(onClick = { use(t) }) { Text("Verwenden") }
+                                }
+                            }
+                        }
+                    }
+                }
                 Text("Kategorie", style = MaterialTheme.typography.labelLarge)
                 ChipFlow {
                     categories.forEach { c ->
@@ -330,7 +369,10 @@ fun NewTermDialog(
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { if (label.isNotBlank()) onNew(label.trim(), cat) }) { Text("Neu anlegen") } },
+        confirmButton = {
+            if (exact != null) TextButton(onClick = { use(exact) }) { Text("Vorhandenen verwenden") }
+            else TextButton(onClick = { if (label.isNotBlank()) onNew(label.trim(), cat) }) { Text(if (similar.isEmpty()) "Neu anlegen" else "Trotzdem neu anlegen") }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
 }

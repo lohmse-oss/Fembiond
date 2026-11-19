@@ -11,6 +11,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FembiondDao {
+    @Transaction
+    suspend fun mergeTerm(from: Long, into: Long, fromLabel: String, intoLabel: String, eventType: Boolean, uses: Int, keepHidden: Boolean) {
+        dropDuplicateEntryTerms(from, into); moveEntryTerms(from, into)
+        dropDuplicatePanicTerms(from, into); movePanicTerms(from, into)
+        moveSynonyms(from, into)
+        if (eventType) renameEventType(fromLabel, intoLabel)
+        addUse(into, uses)
+        // Startbegriffe würden beim nächsten Start neu angelegt – daher ausgeblendet behalten
+        if (keepHidden) hideTerm(from) else deleteTermById(from)
+    }
+
     // Perioden
     @Query("SELECT * FROM periods ORDER BY start")
     fun periods(): Flow<List<PeriodEntity>>
@@ -33,6 +44,28 @@ interface FembiondDao {
 
     @Query("SELECT * FROM terms")
     suspend fun termsOnce(): List<TermEntity>
+
+    // Begriffe zusammenführen / löschen
+    @Query("DELETE FROM entry_terms WHERE termId = :from AND entryId IN (SELECT entryId FROM entry_terms WHERE termId = :into)")
+    suspend fun dropDuplicateEntryTerms(from: Long, into: Long)
+    @Query("UPDATE entry_terms SET termId = :into WHERE termId = :from")
+    suspend fun moveEntryTerms(from: Long, into: Long)
+    @Query("DELETE FROM panic_terms WHERE termId = :from AND panicId IN (SELECT panicId FROM panic_terms WHERE termId = :into)")
+    suspend fun dropDuplicatePanicTerms(from: Long, into: Long)
+    @Query("UPDATE panic_terms SET termId = :into WHERE termId = :from")
+    suspend fun movePanicTerms(from: Long, into: Long)
+    @Query("UPDATE synonyms SET termId = :into WHERE termId = :from")
+    suspend fun moveSynonyms(from: Long, into: Long)
+    @Query("UPDATE events SET type = :into WHERE type = :from")
+    suspend fun renameEventType(from: String, into: String)
+    @Query("UPDATE terms SET useCount = useCount + :add WHERE id = :id")
+    suspend fun addUse(id: Long, add: Int)
+    @Query("UPDATE terms SET hidden = 1, useCount = 0 WHERE id = :id")
+    suspend fun hideTerm(id: Long)
+    @Query("DELETE FROM terms WHERE id = :id")
+    suspend fun deleteTermById(id: Long)
+    @Query("SELECT (SELECT COUNT(*) FROM entry_terms WHERE termId = :id) + (SELECT COUNT(*) FROM panic_terms WHERE termId = :id)")
+    suspend fun termUsage(id: Long): Int
 
     @Query("SELECT * FROM terms WHERE label = :label AND category = :category LIMIT 1")
     suspend fun term(label: String, category: String): TermEntity?

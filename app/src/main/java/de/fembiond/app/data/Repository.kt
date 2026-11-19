@@ -272,6 +272,27 @@ class Repository(
         dao.updateTerm(t.copy(label = label.trim(), category = category.name, hidden = hidden))
     }
 
+    /**
+     * Führt [from] in [into] zusammen: alle Einträge zeigen danach auf [into], der alte Name wird
+     * als anderes Wort gelernt, damit Text- und Spracheingabe ihn weiter erkennen.
+     */
+    suspend fun mergeTerms(from: TermInfo, into: TermInfo) {
+        if (from.id == into.id) return
+        dao.mergeTerm(from.id, into.id, from.label, into.label, from.category == Category.EVENT_TYPE, from.useCount, from.builtIn)
+        val phrase = from.label.trim().lowercase()
+        if (phrase != into.label.lowercase()) dao.insertSynonym(SynonymEntity(phrase, into.id))
+    }
+
+    /** Wie oft ein Begriff in Einträgen vorkommt (0 = kann gelöscht werden). */
+    suspend fun termUsage(info: TermInfo): Int = dao.termUsage(info.id)
+
+    /** Löscht nur unbenutzte Begriffe; benutzte lassen sich ausblenden oder zusammenführen. */
+    suspend fun deleteTermIfUnused(info: TermInfo): Boolean {
+        if (dao.termUsage(info.id) > 0) return false
+        if (info.builtIn) dao.hideTerm(info.id) else dao.deleteTermById(info.id)
+        return true
+    }
+
     // ---------- Panik ----------
 
     suspend fun saveEpisode(

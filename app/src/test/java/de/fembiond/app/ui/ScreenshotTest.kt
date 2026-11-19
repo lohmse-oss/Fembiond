@@ -93,6 +93,8 @@ class ScreenshotTest {
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
         ) { de.fembiond.app.ui.screens.ClassificationCards(r, de.fembiond.app.domain.Category.entries.toSet()) }
     }
+    @Config(qualifiers = "w412dp-h3000dp-xxhdpi")
+    @Test fun terms() = shot("21_begriffe") { de.fembiond.app.ui.screens.TermsScreen(it, data, rememberNavController()) }
     @Test fun more() = shot("09_mehr") { MoreScreen(data, rememberNavController()) }
     @Test fun export() = shot("10_export") { ExportScreen(it, data, rememberNavController()) }
     @Test fun settings() = shot("11_einstellungen") { SettingsScreen(it, data, rememberNavController()) }

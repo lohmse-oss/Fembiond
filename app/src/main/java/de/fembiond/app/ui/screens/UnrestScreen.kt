@@ -163,6 +163,7 @@ fun UnrestScreen(vm: AppViewModel, data: AppData, nav: NavController, preselectE
     addFor?.let { cat ->
         NewTermDialog(
             data = data, initial = "", initialCategory = cat, categories = listOf(cat),
+            onUnhide = { t -> vm.run { updateTerm(t, hidden = false) } },
             onDismiss = { addFor = null },
             onNew = { label, _ ->
                 when (cat) {
