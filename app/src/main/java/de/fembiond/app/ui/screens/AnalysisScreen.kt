@@ -417,8 +417,12 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
         (showMind && result.trends.any { (it.unrestCount ?: 0) > 0 || it.gad != null }) ||
             (Category.BODY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
     val periStats = de.fembiond.app.domain.PeriStats.symptomStats(data.occurrences, from, to)
+    val classification = remember(data, from, to, pms) {
+        de.fembiond.app.domain.Classification.analyze(data.summary, data.occurrences, data.episodes, data.today, from, to, data.age, pms)
+    }
     val tabs = buildList {
         add("overview" to "Überblick")
+        if (showPms && !classification.isEmpty) add("classify" to "Einordnung")
         if ((all && result.cycles.bars.isNotEmpty()) || result.heatmap.rows.isNotEmpty() || (all && result.compare.size >= 2)) add("cycle" to "Zyklus")
         if (showMind && (result.unrestTotal > 0 || result.anticipation.any { it.events > 0 } || result.coOccurrence.isNotEmpty() || result.events.isNotEmpty())) add("unrest" to "Unruhe")
         if (result.drsp.isNotEmpty() || (showPms && pms.symptoms.any { it.preRate > 0 || it.postRate > 0 })) add("pms" to "PMS")
@@ -510,6 +514,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
             HeatmapView(result.heatmap)
         }
 
+        if (tab == "classify") ClassificationCards(classification, categories)
         if (tab == "pms" && result.drsp.isNotEmpty()) DrspCard(result.drspPairs, result.drsp)
 
         if (tab == "pms" && showPms && pms.symptoms.any { it.preRate > 0 || it.postRate > 0 }) PmsCard(pms)
