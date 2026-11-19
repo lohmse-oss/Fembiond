@@ -90,6 +90,14 @@ object Guide {
 - Dazu siehst du die Ereignisse der nächsten Woche mit voraussichtlicher Zyklusphase.
 - Der Rückblick erscheint sonntags und montags auf dem Startbildschirm und als Benachrichtigung. Abschaltbar unter Einstellungen.
 """.trimIndent()),
+        GuideSection("knowledge", "Zyklus-Wissen: was an welchem Tag typisch ist", Icons.Rounded.Lightbulb, """
+- **Mehr → Zyklus-Wissen** zeigt, was laut Fachliteratur an bestimmten Zyklustagen typisch ist: Menstruation, Follikelphase, fruchtbares Fenster, LH-Anstieg, Eisprung, Mittelschmerz, Lutealphase, Progesteron-Höchstwert, prämenstruelle Tage und die erwartete Periode – dazu Laborzeitpunkte (z. B. Hormonwerte an Tag 2–5).
+- Wichtig: „Eisprung an Tag 14“ gilt nur für 28-Tage-Zyklen. Fest ist vor allem die Zeit **nach** dem Eisprung (etwa 12–14 Tage). Die App rechnet deshalb vom erwarteten Periodenbeginn zurück und nutzt eure echte Zykluslänge.
+- Mit dem Schieberegler wählst du einen Zyklustag; die Zeitleiste zeigt alle Fenster mit Datum im aktuellen Zyklus. Ein Tipp auf einen Eintrag zeigt Erklärung und Quelle.
+- Bei zyklischem Progesteron erscheinen Einnahmetage und die mögliche Abbruchblutung.
+- Auch im Zyklusring (Tag antippen) und in der Tagesansicht steht unter **„Im Zyklus typisch“**, was für diesen Tag gilt.
+- Alle Angaben sind Schätzungen – nicht zur Verhütung oder Diagnose.
+""".trimIndent()),
         GuideSection("pms", "PMS – prämenstruelle Beschwerden", Icons.Rounded.Psychology, """
 - Die App prüft nach den Kriterien der amerikanischen Fachgesellschaft für Gynäkologie (ACOG), ob in den **5 Tagen vor der Periode** Beschwerden der **Stimmung** (z. B. gereizt, traurig, ängstlich, innere Unruhe, Stimmungsschwankungen, Rückzug) **und** des **Körpers** (z. B. Brustspannen, Blähungen, Kopfschmerzen, Wassereinlagerungen) auftreten, die an **Tag 4–10 nach Beginn der Periode wieder abklingen**.
 - Zeigt sich das in **3 Zyklen hintereinander**, gilt es als PMS-typisch. Bei sehr vielen, deutlichen Beschwerden in mehreren Zyklen weist die App auf eine mögliche PMDS hin – das sollte ärztlich abgeklärt werden.

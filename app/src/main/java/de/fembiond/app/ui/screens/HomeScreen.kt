@@ -55,6 +55,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -176,7 +177,14 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
                 AnimatedVisibility(selectedDay != null) {
                     selectedDay?.let { d -> DayPeek(data, current.cycleStart.plusDays(d - 1L), d, nav) { selectedDay = null } }
                 }
-                if (selectedDay == null) HintText("Tipp: Tippe auf einen Tag im Ring für Details. Punkte außen zeigen Unruhe.", Modifier.fillMaxWidth(), center = true)
+                if (selectedDay == null) {
+                    HintText("Tipp: Tippe auf einen Tag im Ring für Details. Punkte außen zeigen Unruhe.", Modifier.fillMaxWidth(), center = true)
+                    val typical = de.fembiond.app.domain.CycleKnowledge.forDate(s, data.medications, today, today)?.facts.orEmpty()
+                    if (typical.isNotEmpty()) TextButton(onClick = { nav.navigate(Routes.knowledge(current.cycleDay)) }, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Rounded.Lightbulb, null, Modifier.size(18.dp)); Spacer(Modifier.width(6.dp))
+                        Text("Heute typisch: " + typical.joinToString { it.title }, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    }
+                }
                 val pred = current.prediction
                 val predText = when {
                     pred.overdueDays > 0 -> "Periode überfällig seit ${pred.overdueDays} ${if (pred.overdueDays == 1) "Tag" else "Tagen"}"

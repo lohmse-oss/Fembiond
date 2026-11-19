@@ -82,6 +82,8 @@ class ScreenshotTest {
     @Test fun mrs() = shot("16_mrs") { de.fembiond.app.ui.screens.MrsScreen(it, data, rememberNavController()) }
     @Config(qualifiers = "w412dp-h1600dp-xxhdpi")
     @Test fun searchScreen() = shot("17_suche") { de.fembiond.app.ui.screens.SearchScreen(data, rememberNavController()) }
+    @Config(qualifiers = "w412dp-h2800dp-xxhdpi")
+    @Test fun knowledge() = shot("18_zyklus_wissen") { de.fembiond.app.ui.screens.KnowledgeScreen(data, rememberNavController()) }
     @Test fun more() = shot("09_mehr") { MoreScreen(data, rememberNavController()) }
     @Test fun export() = shot("10_export") { ExportScreen(it, data, rememberNavController()) }
     @Test fun settings() = shot("11_einstellungen") { SettingsScreen(it, data, rememberNavController()) }

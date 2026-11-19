@@ -106,7 +106,15 @@ fun DayPeek(data: AppData, date: LocalDate, cycleDay: Int, nav: NavController, o
             events.forEach { HintText("Ereignis: ${it.displayName}") }
             if (terms.isNotEmpty()) ChipFlow { terms.forEach { TermChip(it, false, null, {}) } }
             if (terms.isEmpty() && maxUnrest == null && events.isEmpty()) HintText(if (date.isAfter(data.today)) "Dieser Tag liegt in der Zukunft." else "Keine Einträge an diesem Tag.")
-            if (!date.isAfter(data.today)) TextButton(onClick = { nav.navigate(Routes.day(date)) }) { Text("Tag öffnen") }
+            val knowledge = de.fembiond.app.domain.CycleKnowledge.forDate(data.summary, data.medications, date, data.today)
+            if (knowledge != null && knowledge.facts.isNotEmpty()) {
+                Text("Im Zyklus typisch", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
+                TypicalFacts(knowledge.facts)
+            }
+            Row {
+                if (!date.isAfter(data.today)) TextButton(onClick = { nav.navigate(Routes.day(date)) }) { Text("Tag öffnen") }
+                TextButton(onClick = { nav.navigate(Routes.knowledge(cycleDay)) }) { Text("Zyklus-Wissen") }
+            }
         }
     }
 }

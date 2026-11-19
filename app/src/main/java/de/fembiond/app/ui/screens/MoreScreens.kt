@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Event
@@ -83,6 +84,8 @@ fun MoreScreen(data: AppData, nav: NavController) {
             MoreItem(Icons.Rounded.Settings, "Einstellungen", "Darstellung, App-Sperre, Erinnerungen, Grunddaten") { nav.navigate(Routes.SETTINGS) }
         }
         SectionCard {
+            MoreItem(Icons.Rounded.Lightbulb, "Zyklus-Wissen", "Was an welchem Zyklustag typisch ist – Eisprung, Hormone, Laborzeitpunkte") { nav.navigate(Routes.knowledge()) }
+            HorizontalDivider()
             MoreItem(Icons.AutoMirrored.Rounded.MenuBook, "Anleitung", "So funktioniert Fembiond – Schritt für Schritt") { nav.navigate(Routes.guide()) }
             HorizontalDivider()
             MoreItem(Icons.Rounded.Info, "Über Fembiond", "Version ${de.fembiond.app.BuildConfig.VERSION_NAME}, Neuerungen, Updates, Datenschutz") { nav.navigate(Routes.ABOUT) }

@@ -47,6 +47,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import de.fembiond.app.Routes
+import de.fembiond.app.domain.CycleKnowledge
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material3.TextButton
 import de.fembiond.app.data.AppData
 import de.fembiond.app.domain.CycleEngine
 import de.fembiond.app.domain.ScaleTerms
@@ -214,6 +217,12 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
                     OutlinedButton(onClick = { vm.run { endPeriod(date) } }) { Text("Periode endete") }
                 }
             }
+        }
+
+        val knowledge = CycleKnowledge.forDate(data.summary, data.medications, date, data.today)
+        if (knowledge != null && knowledge.facts.isNotEmpty()) SectionCard(title = "Im Zyklus typisch", icon = Icons.Rounded.Lightbulb) {
+            TypicalFacts(knowledge.facts)
+            TextButton(onClick = { nav.navigate(Routes.knowledge(knowledge.cycleDay)) }) { Text("Mehr im Zyklus-Wissen") }
         }
 
         data.medications.filter { CycleEngine.intakeDue(it, data.summary, date) }.forEach { m ->
