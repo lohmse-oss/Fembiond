@@ -114,8 +114,8 @@ object WeeklyReviewBuilder {
         val prevTrackedWeeks = ((occP.map { it.date } + epP.map { it.date }).toSet().size / 7.0).coerceAtLeast(0.0)
         val sleepW = occW.filter { it.term == ScaleTerms.SLEEP_QUALITY }.mapNotNull { it.intensity }
         val sleepP = occP.filter { it.term == ScaleTerms.SLEEP_QUALITY }.mapNotNull { it.intensity }
-        val hotW = occW.count { it.term in PeriStats.SYMPTOMS && it.category == Category.PERIMENOPAUSE }
-        val hotP = occP.count { it.term in PeriStats.SYMPTOMS && it.category == Category.PERIMENOPAUSE }
+        val hotW = occW.count { it.term in Lexicon.PERI_TYPICAL }
+        val hotP = occP.count { it.term in Lexicon.PERI_TYPICAL }
 
         val obs = mutableListOf<String>()
         if (tracked == 0) {
@@ -147,7 +147,7 @@ object WeeklyReviewBuilder {
             }
             if (hotW > 0) {
                 val p = if (hotP > 0 && prevTrackedWeeks > 0) hotP / 4.0 else null
-                val top = occW.filter { it.term in PeriStats.SYMPTOMS && it.category == Category.PERIMENOPAUSE }.groupingBy { it.term }.eachCount().maxByOrNull { it.value }?.key
+                val top = occW.filter { it.term in Lexicon.PERI_TYPICAL }.groupingBy { it.term }.eachCount().maxByOrNull { it.value }?.key
                 obs += "$hotW× typische Perimenopause-Beschwerden" + (top?.let { ", am häufigsten „$it“" } ?: "") + (p?.let { " (sonst etwa ${de1(it)} pro Woche)" } ?: "") + "."
             }
             val good = occW.filter { it.term in setOf("ausgeglichen", "fröhlich", "gut geschlafen", "energiegeladen") }.map { it.date }.toSet().size

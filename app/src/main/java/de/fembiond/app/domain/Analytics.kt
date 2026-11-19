@@ -512,7 +512,7 @@ object Analytics {
         dayWeight: Map<LocalDate, Double>,
     ): List<EventEffect> {
         val events = termDays.filterKeys { it.second == Category.LIFE }.filterValues { it.size >= 3 }
-        val targets = termDays.filterKeys { it.second in setOf(Category.MIND, Category.SLEEP_ENERGY, Category.BODY) || it.first == PANIC_LABEL }
+        val targets = termDays.filterKeys { it.second in setOf(Category.MIND, Category.BODY) || it.first == PANIC_LABEL }
             .filterValues { it.size >= 3 }
         val out = mutableListOf<EventEffect>()
         for ((ek, edays) in events) {

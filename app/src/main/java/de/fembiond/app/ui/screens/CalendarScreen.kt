@@ -260,7 +260,7 @@ fun DayScreen(vm: AppViewModel, data: AppData, nav: NavController, date: LocalDa
                         Text(e.time.hm() + if (e.backfilled) " · nachgetragen" else "", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         ChipFlow {
                             e.terms.filter { it.term != ScaleTerms.SLEEP_QUALITY && it.term != ScaleTerms.ENERGY }
-                                .forEach { t -> TermChip(t.term, true, t.intensity, {}, t.category.icon(), sudden = t.sudden) }
+                                .forEach { t -> TermChip(t.term, true, t.intensity, {}, t.category.icon()) }
                         }
                         e.terms.filter { it.term == ScaleTerms.SLEEP_QUALITY || it.term == ScaleTerms.ENERGY }.takeIf { it.isNotEmpty() }
                             ?.let { HintText(it.joinToString(" · ") { s -> "${s.term} ${s.intensity}/5" }) }

@@ -40,9 +40,9 @@ class ForecastTest {
     @Test
     fun weeklyReviewComparesToPreviousWeeks() {
         val eps = (0..27).filter { it % 4 == 0 }.map { ep(today.minusDays(7L + it), 2) } + (0..5).map { ep(today.minusDays(it.toLong()), 3) }
-        val occ = (0..6).map { TermOccurrence(today.minusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, 2) } +
-            (7..34).map { TermOccurrence(today.minusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, 4) } +
-            listOf(TermOccurrence(today.atTime(9, 0), "Hitzewallung", Category.PERIMENOPAUSE))
+        val occ = (0..6).map { TermOccurrence(today.minusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.BODY, 2) } +
+            (7..34).map { TermOccurrence(today.minusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.BODY, 4) } +
+            listOf(TermOccurrence(today.atTime(9, 0), "Hitzewallung", Category.BODY))
         val r = WeeklyReviewBuilder.build(summary, occ, eps, emptyList(), today)
         assertEquals(6, r.unrestCount)
         assertTrue(r.observations.any { it.startsWith("Mehr Unruhe") })
@@ -84,7 +84,7 @@ class PeriStatsTest {
     @Test
     fun onlySymptomsWithEntriesAndResearchDefaults() {
         assertEquals(PeriStats.DEFAULT_QUICK, PeriStats.quickTerms(emptyList(), today))
-        val occ = listOf(o(1, "Gelenkschmerzen", Category.BODY), o(2, "Gelenkschmerzen", Category.BODY), o(1, "Frühes Erwachen", Category.SLEEP_ENERGY), o(1, "Krämpfe", Category.BODY))
+        val occ = listOf(o(1, "Gelenkschmerzen", Category.BODY), o(2, "Gelenkschmerzen", Category.BODY), o(1, "Frühes Erwachen", Category.BODY), o(1, "Krämpfe", Category.BODY))
         val stats = PeriStats.symptomStats(occ, today.minusDays(30), today)
         assertEquals(listOf("Gelenkschmerzen", "Frühes Erwachen"), stats.map { it.term })
         assertEquals("Schmerzen", stats.first().group)

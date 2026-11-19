@@ -145,7 +145,7 @@ fun RangeAndFilter(
     }
 }
 
-val FILTER_CATEGORIES = Category.entries.filter { it.isDaily && it != Category.BLEEDING }
+val FILTER_CATEGORIES = Category.entries.filter { it.isDaily }
 
 @Composable
 fun AnticipationChart(points: List<de.fembiond.app.domain.AnticipationPoint>) {
@@ -304,14 +304,14 @@ fun OverlayCard(data: AppData, categories: Set<Category>) {
         val m = data.occurrences.filter { it.term == term }.groupBy { it.date }.mapValues { (_, l) -> l.mapNotNull { it.intensity }.average() }
         return { d -> m[d]?.takeIf { !it.isNaN() } }
     }
-    val peri = data.occurrences.filter { it.category == Category.PERIMENOPAUSE }.groupingBy { it.date }.eachCount()
+    val peri = data.occurrences.filter { it.term in de.fembiond.app.domain.Lexicon.PERI_TYPICAL }.groupingBy { it.date }.eachCount()
     val sleepTerm = de.fembiond.app.domain.ScaleTerms.SLEEP_QUALITY
     val energyTerm = de.fembiond.app.domain.ScaleTerms.ENERGY
     val metrics = buildList<Triple<String, (java.time.LocalDate) -> Double?, Double>> {
         if (Category.MIND in categories && unrest.isNotEmpty()) add(Triple("Unruhe", { d -> unrest[d] ?: if (d in tracked) 0.0 else null }, 5.0))
-        if (Category.SLEEP_ENERGY in categories && data.occurrences.any { it.term == sleepTerm }) add(Triple("Schlaf", scale(sleepTerm), 5.0))
-        if (Category.SLEEP_ENERGY in categories && data.occurrences.any { it.term == energyTerm }) add(Triple("Energie", scale(energyTerm), 5.0))
-        if (Category.PERIMENOPAUSE in categories && peri.isNotEmpty()) add(Triple("Perimenopause", { d -> peri[d]?.toDouble() ?: if (d in tracked) 0.0 else null }, (peri.values.maxOrNull() ?: 3).coerceAtLeast(3).toDouble()))
+        if (Category.BODY in categories && data.occurrences.any { it.term == sleepTerm }) add(Triple("Schlaf", scale(sleepTerm), 5.0))
+        if (Category.BODY in categories && data.occurrences.any { it.term == energyTerm }) add(Triple("Energie", scale(energyTerm), 5.0))
+        if (Category.BODY in categories && peri.isNotEmpty()) add(Triple("Perimenopause-typisch", { d -> peri[d]?.toDouble() ?: if (d in tracked) 0.0 else null }, (peri.values.maxOrNull() ?: 3).coerceAtLeast(3).toDouble()))
     }
     if (metrics.isEmpty()) return
     var metric by remember { mutableStateOf(0) }
@@ -406,7 +406,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
     val pc = LocalPhaseColors.current
     val all = categories.containsAll(FILTER_CATEGORIES)
     val showMind = Category.MIND in categories
-    val showPeri = Category.PERIMENOPAUSE in categories
+    val showPeri = Category.MIND in categories || Category.BODY in categories
     val showPms = Category.MIND in categories || Category.BODY in categories
     val pms = remember(data, from, to) { de.fembiond.app.domain.Pms.analyze(data.summary, data.occurrences, data.episodes, data.today, from, to) }
     val scrollState = rememberScrollState()
@@ -415,7 +415,7 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
     val hasYear = showMind && data.episodes.any { !it.date.isBefore(from) && !it.date.isAfter(to) }
     val hasTrends = result.trends.size >= 2 && (
         (showMind && result.trends.any { (it.unrestCount ?: 0) > 0 || it.gad != null }) ||
-            (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
+            (Category.BODY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
     val periStats = de.fembiond.app.domain.PeriStats.symptomStats(data.occurrences, from, to)
     val tabs = buildList {
         add("overview" to "Überblick")
@@ -630,10 +630,10 @@ fun AnalysisScreen(data: AppData, nav: NavController) {
 
         val trendData = result.trends.size >= 2 && (
             (showMind && result.trends.any { (it.unrestCount ?: 0) > 0 || it.gad != null }) ||
-                (Category.SLEEP_ENERGY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
+                (Category.BODY in categories && result.trends.any { it.meanSleep != null || it.meanEnergy != null }))
         if (tab == "overview" && trendData) SectionCard(title = "Verläufe pro Kalenderwoche", icon = Icons.Rounded.ShowChart) {
             val labels = result.trends.map { it.label }
-            val showSleep = Category.SLEEP_ENERGY in categories
+            val showSleep = Category.BODY in categories
             if (showSleep && result.trends.any { it.meanSleep != null }) {
                 Text("Schlafqualität (1–5)", style = MaterialTheme.typography.labelLarge)
                 LineChart(result.trends.map { it.meanSleep }, labels, 1.0, 5.0, MaterialTheme.colorScheme.secondary)

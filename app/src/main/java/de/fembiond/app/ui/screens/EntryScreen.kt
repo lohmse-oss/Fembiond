@@ -126,8 +126,8 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
 
     fun save() {
         val list = selections.values.toMutableList()
-        sleep?.let { list += Selection(ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, it) }
-        energy?.let { list += Selection(ScaleTerms.ENERGY, Category.SLEEP_ENERGY, it) }
+        sleep?.let { list += Selection(ScaleTerms.SLEEP_QUALITY, Category.BODY, it) }
+        energy?.let { list += Selection(ScaleTerms.ENERGY, Category.BODY, it) }
         val time = if (date == data.today) LocalDateTime.now() else date.atTime(LocalTime.NOON)
         val backfilled = date.isBefore(data.today.minusDays(2))
         val source = if (usedVoice) "voice" else if (text.isNotBlank()) "text" else "chips"
@@ -198,8 +198,8 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
                                 if (k in autoKeys) { autoKeys.remove(k); rejected.add(k) }
                             }) { Icon(Icons.Rounded.Close, "Entfernen") }
                         }
-                        if (sel.category != Category.BLEEDING) {
-                            de.fembiond.app.ui.StrengthSelector(sel.intensity, sel.sudden, { selections[k] = sel.copy(intensity = it) }, { selections[k] = sel.copy(sudden = it) }, Modifier.padding(start = 28.dp))
+                        if (sel.label !in de.fembiond.app.domain.Lexicon.BLEEDING_TERMS) {
+                            de.fembiond.app.ui.StrengthSelector(sel.intensity, { selections[k] = sel.copy(intensity = it) }, Modifier.padding(start = 28.dp))
                         }
                         if (sel.category == Category.LIFE) {
                             Row(Modifier.padding(start = 28.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -232,7 +232,7 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
             }
         }
         SectionCard(title = tab.label, icon = tab.icon()) {
-            if (tab == Category.SLEEP_ENERGY) {
+            if (tab == Category.BODY) {
                 Text("Schlafqualität", style = MaterialTheme.typography.labelLarge)
                 IntensitySelector(sleep, { sleep = it })
                 Text("Energie", style = MaterialTheme.typography.labelLarge)

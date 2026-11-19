@@ -91,7 +91,7 @@ object AgentExport {
                                 list.forEach { o ->
                                     add(buildJsonObject {
                                         put("term", o.term); put("category", o.category.name)
-                                        o.intensity?.let { put("intensity_1_5", it) }; if (o.sudden) put("sudden_onset", true)
+                                        o.intensity?.let { put("intensity_1_5", it) }
                                         o.valence?.let { put("valence", it.name) }
                                         if (o.backfilled) put("backfilled", true)
                                     })

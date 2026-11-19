@@ -238,7 +238,7 @@ fun HomeScreen(vm: AppViewModel, data: AppData, nav: NavController) {
 
         // Blutung erfasst, aber keine Periode aktiv
         val bleedingToday = data.occurrences.any {
-            it.date == today && it.category == Category.BLEEDING && it.term !in setOf("Schmierblutung", "Zwischenblutung")
+            it.date == today && it.term in de.fembiond.app.domain.Lexicon.BLEEDING_TERMS && it.term !in setOf("Schmierblutung", "Zwischenblutung")
         }
         if (bleedingToday && current?.inPeriod != true) {
             SectionCard(title = "Blutung erfasst", icon = Icons.Rounded.WaterDrop) {

@@ -111,7 +111,7 @@ fun QuickSymptomSheet(vm: AppViewModel, data: AppData, nav: NavController, onDis
     val more = PeriStats.GROUPS.flatMap { it.second }.filter { it !in own }
     fun categoryOf(t: String): Category =
         data.terms.firstOrNull { it.label == t && it.category.isDaily }?.category
-            ?: Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category ?: Category.PERIMENOPAUSE
+            ?: Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category ?: Category.BODY
     var pending by remember { mutableStateOf<String?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
@@ -119,11 +119,11 @@ fun QuickSymptomSheet(vm: AppViewModel, data: AppData, nav: NavController, onDis
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Beschwerde erfassen", style = MaterialTheme.typography.titleLarge)
-            HintText("Beschwerde antippen, Stärke wählen (optional, auch „schlagartig“) und speichern. Die Uhrzeit wird mitgespeichert; mehrere nacheinander sind möglich.")
+            HintText("Beschwerde antippen, Stärke wählen (optional) und speichern. Die Uhrzeit wird mitgespeichert; mehrere nacheinander sind möglich.")
             pending?.let { t ->
-                de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level, sudden ->
+                de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level ->
                     haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                    vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level, sudden = sudden)), "quick") }
+                    vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level)), "quick") }
                     Toast.makeText(context, "„$t“ erfasst", Toast.LENGTH_SHORT).show()
                     pending = null
                 })

@@ -33,7 +33,6 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -90,9 +89,6 @@ import kotlin.math.sin
 fun Category.icon(): ImageVector = when (this) {
     Category.MIND -> Icons.Rounded.Psychology
     Category.BODY -> Icons.Rounded.Accessibility
-    Category.PERIMENOPAUSE -> Icons.Rounded.LocalFireDepartment
-    Category.SLEEP_ENERGY -> Icons.Rounded.Bedtime
-    Category.BLEEDING -> Icons.Rounded.WaterDrop
     Category.LIFE -> Icons.Rounded.Groups
     Category.MEDICATION_EFFECT -> Icons.Rounded.Medication
     Category.PANIC_SYMPTOM -> Icons.Rounded.MonitorHeart
@@ -168,43 +164,24 @@ fun IntensitySelector(value: Int?, onChange: (Int?) -> Unit, modifier: Modifier 
     }
 }
 
-/** Stärke 1–5 (leicht bis stark) plus „schlagartig“ – für jeden erfassten Sachverhalt. */
+/** Stärke 1–5 (leicht bis stark) – für jeden erfassten Sachverhalt. */
 @Composable
-fun StrengthSelector(
-    intensity: Int?,
-    sudden: Boolean,
-    onIntensity: (Int?) -> Unit,
-    onSudden: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun StrengthSelector(intensity: Int?, onIntensity: (Int?) -> Unit, modifier: Modifier = Modifier) {
     androidx.compose.foundation.layout.Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         IntensitySelector(intensity, onIntensity)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.material3.FilterChip(
-                selected = sudden, onClick = { onSudden(!sudden) },
-                label = { Text("schlagartig", maxLines = 1) },
-                leadingIcon = { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Bolt, null, Modifier.size(16.dp)) },
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                intensity?.let { "Stärke $it – ${STRENGTH_LABELS[it - 1]}" } ?: "Stärke optional: 1 leicht … 5 stark",
-                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        Text(
+            intensity?.let { "Stärke $it – ${STRENGTH_LABELS[it - 1]}" } ?: "Stärke optional: 1 leicht … 5 stark",
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 val STRENGTH_LABELS = listOf("leicht", "spürbar", "mittel", "deutlich", "stark")
 
-/**
- * Nach dem Antippen eines Begriffs: Stärke und „schlagartig“ wählen, dann speichern.
- * „Ohne Stärke“ speichert wie bisher mit einem Tipp mehr.
- */
+/** Nach dem Antippen eines Begriffs: Stärke wählen und speichern – „Ohne Stärke“ speichert sofort. */
 @Composable
-fun StrengthPrompt(term: String, onSave: (intensity: Int?, sudden: Boolean) -> Unit, onCancel: () -> Unit) {
+fun StrengthPrompt(term: String, onSave: (intensity: Int?) -> Unit, onCancel: () -> Unit) {
     var intensity by androidx.compose.runtime.remember(term) { androidx.compose.runtime.mutableStateOf<Int?>(null) }
-    var sudden by androidx.compose.runtime.remember(term) { androidx.compose.runtime.mutableStateOf(false) }
     androidx.compose.material3.Card(
         Modifier.fillMaxWidth(),
         colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -214,10 +191,10 @@ fun StrengthPrompt(term: String, onSave: (intensity: Int?, sudden: Boolean) -> U
                 Text("„$term“ – wie stark?", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                 androidx.compose.material3.IconButton(onClick = onCancel) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Close, "Abbrechen") }
             }
-            StrengthSelector(intensity, sudden, { intensity = it }, { sudden = it })
+            StrengthSelector(intensity, { intensity = it })
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                androidx.compose.material3.OutlinedButton(onClick = { onSave(null, sudden) }, modifier = Modifier.weight(1f)) { Text("Ohne Stärke") }
-                androidx.compose.material3.Button(onClick = { onSave(intensity, sudden) }, enabled = intensity != null, modifier = Modifier.weight(1f)) { Text("Speichern") }
+                androidx.compose.material3.OutlinedButton(onClick = { onSave(null) }, modifier = Modifier.weight(1f)) { Text("Ohne Stärke") }
+                androidx.compose.material3.Button(onClick = { onSave(intensity) }, enabled = intensity != null, modifier = Modifier.weight(1f)) { Text("Speichern") }
             }
         }
     }
@@ -245,7 +222,6 @@ fun TermChip(
     intensity: Int?,
     onClick: () -> Unit,
     icon: ImageVector? = null,
-    sudden: Boolean = false,
 ) {
     val haptic = LocalHapticFeedback.current
     FilterChip(
@@ -258,10 +234,7 @@ fun TermChip(
                     Spacer(Modifier.width(8.dp))
                     IntensityPips(intensity, MaterialTheme.colorScheme.onSecondaryContainer)
                 }
-                if (selected && sudden) {
-                    Spacer(Modifier.width(6.dp))
-                    Icon(Icons.Rounded.Bolt, "schlagartig", Modifier.size(16.dp))
-                }
+
             }
         },
         leadingIcon = when {

@@ -15,11 +15,20 @@ data class LexEntry(
 
 object Lexicon {
 
+    /** Blutungsbegriffe (zählen zu „Körper“, haben aber keine Stärke 1–5). */
+    val BLEEDING_TERMS = setOf("Schmierblutung", "Blutung leicht", "Blutung mittel", "Blutung stark", "Blutung sehr stark", "Zwischenblutung")
+
+    /** Beschwerden, die in der Forschung vor allem der Perimenopause zugeordnet werden (kaum PMS-typisch). */
+    val PERI_TYPICAL = setOf(
+        "Hitzewallung", "Nachtschweiß", "Herzrasen", "Scheidentrockenheit", "Harndrang", "trockene Haut / Juckreiz",
+        "Haarausfall", "Gewichtszunahme", "Tinnitus", "Kribbeln / Missempfindungen", "trockene Augen",
+    )
+
     private fun e(label: String, cat: Category, vararg syn: String, valence: Valence? = null) =
         LexEntry(label, cat, syn.toList(), valence)
 
     val entries: List<LexEntry> = listOf(
-        // Stimmung & Geist
+        // Psyche
         e("gereizt", Category.MIND, "reizbar", "genervt", "aggressiv", "zickig", "dünnhäutig", "ungeduldig", "wütend", "wut", "sauer"),
         e("traurig", Category.MIND, "niedergeschlagen", "deprimiert", "down", "bedrückt", "weinerlich", "weinen", "geweint", "heulen", "geheult", "melancholisch", "nah am wasser"),
         e("ängstlich", Category.MIND, "angst", "ängste", "besorgt", "sorgen", "verängstigt", "furcht"),
@@ -55,36 +64,36 @@ object Lexicon {
         e("Wassereinlagerungen", Category.BODY, "wasser eingelagert", "geschwollene beine", "geschwollen"),
         e("Schwindel", Category.BODY, "schwindelig", "schwummrig", "benommen"),
 
-        // Perimenopause
-        e("Hitzewallung", Category.PERIMENOPAUSE, "hitzewallungen", "wallungen", "hitzewelle", "hitzeschub", "fliegende hitze"),
-        e("Nachtschweiß", Category.PERIMENOPAUSE, "nachts geschwitzt", "nassgeschwitzt", "schweißgebadet", "nachtschweiss"),
-        e("Herzrasen", Category.PERIMENOPAUSE, "herzjagen", "puls hoch"),
-        e("Scheidentrockenheit", Category.PERIMENOPAUSE, "trockene scheide", "vaginale trockenheit"),
-        e("Harndrang", Category.PERIMENOPAUSE, "ständig aufs klo", "blasenschwäche", "häufiges wasserlassen"),
-        e("trockene Haut / Juckreiz", Category.PERIMENOPAUSE, "trockene haut", "juckreiz", "haut juckt"),
-        e("Haarausfall", Category.PERIMENOPAUSE, "haare fallen aus", "dünnes haar"),
-        e("Gewichtszunahme", Category.PERIMENOPAUSE, "zugenommen", "bauchfett"),
-        e("Tinnitus", Category.PERIMENOPAUSE, "ohrensausen", "ohrgeräusche", "pfeifen im ohr"),
-        e("Kribbeln / Missempfindungen", Category.PERIMENOPAUSE, "missempfindungen", "stromschlag gefühl", "elektrisches gefühl"),
-        e("trockene Augen", Category.PERIMENOPAUSE, "augen brennen", "augen trocken"),
+        // Körper: häufig in der Perimenopause
+        e("Hitzewallung", Category.BODY, "hitzewallungen", "wallungen", "hitzewelle", "hitzeschub", "fliegende hitze"),
+        e("Nachtschweiß", Category.BODY, "nachts geschwitzt", "nassgeschwitzt", "schweißgebadet", "nachtschweiss"),
+        e("Herzrasen", Category.BODY, "herzjagen", "puls hoch"),
+        e("Scheidentrockenheit", Category.BODY, "trockene scheide", "vaginale trockenheit"),
+        e("Harndrang", Category.BODY, "ständig aufs klo", "blasenschwäche", "häufiges wasserlassen"),
+        e("trockene Haut / Juckreiz", Category.BODY, "trockene haut", "juckreiz", "haut juckt"),
+        e("Haarausfall", Category.BODY, "haare fallen aus", "dünnes haar"),
+        e("Gewichtszunahme", Category.BODY, "zugenommen", "bauchfett"),
+        e("Tinnitus", Category.BODY, "ohrensausen", "ohrgeräusche", "pfeifen im ohr"),
+        e("Kribbeln / Missempfindungen", Category.BODY, "missempfindungen", "stromschlag gefühl", "elektrisches gefühl"),
+        e("trockene Augen", Category.BODY, "augen brennen", "augen trocken"),
 
-        // Schlaf & Energie
-        e("müde", Category.SLEEP_ENERGY, "müdigkeit", "schläfrig", "kaputt", "platt"),
-        e("erschöpft", Category.SLEEP_ENERGY, "erschöpfung", "ausgelaugt", "fertig", "total fertig", "k.o.", "ko"),
-        e("energiegeladen", Category.SLEEP_ENERGY, "voller energie", "fit", "tatendrang", "power"),
-        e("Einschlafprobleme", Category.SLEEP_ENERGY, "nicht einschlafen", "schlecht eingeschlafen", "einschlafstörung"),
-        e("Frühes Erwachen", Category.SLEEP_ENERGY, "früh aufgewacht", "um drei aufgewacht", "um 3 aufgewacht", "zu früh wach", "morgens früh wach"),
-        e("Durchschlafprobleme", Category.SLEEP_ENERGY, "oft aufgewacht", "nachts aufgewacht", "aufgewacht", "durchschlafstörung", "wach gelegen"),
-        e("schlecht geschlafen", Category.SLEEP_ENERGY, "kaum geschlafen", "wenig geschlafen", "nicht gut geschlafen", "unruhig geschlafen", "miserabel geschlafen", "schlaflos", "schlaflosigkeit"),
-        e("gut geschlafen", Category.SLEEP_ENERGY, "super geschlafen", "durchgeschlafen", "ausgeschlafen", "erholsam geschlafen"),
+        // Körper: Schlaf & Energie
+        e("müde", Category.BODY, "müdigkeit", "schläfrig", "kaputt", "platt"),
+        e("erschöpft", Category.BODY, "erschöpfung", "ausgelaugt", "fertig", "total fertig", "k.o.", "ko"),
+        e("energiegeladen", Category.BODY, "voller energie", "fit", "tatendrang", "power"),
+        e("Einschlafprobleme", Category.BODY, "nicht einschlafen", "schlecht eingeschlafen", "einschlafstörung"),
+        e("Frühes Erwachen", Category.BODY, "früh aufgewacht", "um drei aufgewacht", "um 3 aufgewacht", "zu früh wach", "morgens früh wach"),
+        e("Durchschlafprobleme", Category.BODY, "oft aufgewacht", "nachts aufgewacht", "aufgewacht", "durchschlafstörung", "wach gelegen"),
+        e("schlecht geschlafen", Category.BODY, "kaum geschlafen", "wenig geschlafen", "nicht gut geschlafen", "unruhig geschlafen", "miserabel geschlafen", "schlaflos", "schlaflosigkeit"),
+        e("gut geschlafen", Category.BODY, "super geschlafen", "durchgeschlafen", "ausgeschlafen", "erholsam geschlafen"),
 
-        // Blutung
-        e("Schmierblutung", Category.BLEEDING, "schmieren", "spotting", "schmierblutungen"),
-        e("Blutung leicht", Category.BLEEDING, "leichte blutung", "periode leicht", "leichte periode"),
-        e("Blutung mittel", Category.BLEEDING, "mittlere blutung", "normale blutung"),
-        e("Blutung stark", Category.BLEEDING, "starke blutung", "periode stark", "starke periode", "starke regel"),
-        e("Blutung sehr stark", Category.BLEEDING, "sehr starke blutung", "extrem starke blutung", "durchgeblutet"),
-        e("Zwischenblutung", Category.BLEEDING, "zwischenblutungen"),
+        // Körper: Blutung
+        e("Schmierblutung", Category.BODY, "schmieren", "spotting", "schmierblutungen"),
+        e("Blutung leicht", Category.BODY, "leichte blutung", "periode leicht", "leichte periode"),
+        e("Blutung mittel", Category.BODY, "mittlere blutung", "normale blutung"),
+        e("Blutung stark", Category.BODY, "starke blutung", "periode stark", "starke periode", "starke regel"),
+        e("Blutung sehr stark", Category.BODY, "sehr starke blutung", "extrem starke blutung", "durchgeblutet"),
+        e("Zwischenblutung", Category.BODY, "zwischenblutungen"),
 
         // Lebensumstände
         e("Arbeitsstress", Category.LIFE, "stress auf der arbeit", "stressiger arbeitstag", "viel arbeit", "deadline", "überstunden", "stress im job", "arbeit stressig", valence = Valence.BURDEN),

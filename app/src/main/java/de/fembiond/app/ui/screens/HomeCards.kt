@@ -149,7 +149,7 @@ fun TrendsCard(data: AppData, nav: NavController) {
     }
     val sleep = scale(ScaleTerms.SLEEP_QUALITY)
     val energy = scale(ScaleTerms.ENERGY)
-    val periTerms = data.occurrences.filter { it.category == Category.PERIMENOPAUSE }.map { it.term }.toSet()
+    val periTerms = de.fembiond.app.domain.Lexicon.PERI_TYPICAL
     val hot = PeriStats.dailyCounts(data.occurrences, periTerms, today, days).map { it.toDouble() }
     if (unrest.all { it == 0.0 } && sleep.all { it == null } && energy.all { it == null } && hot.all { it == 0.0 }) return
     SectionCard(title = "Letzte 14 Tage", icon = Icons.Rounded.ShowChart) {
@@ -183,7 +183,7 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
     fun categoryOf(t: String): Category =
         data.terms.firstOrNull { it.label == t && it.category.isDaily }?.category
             ?: de.fembiond.app.domain.Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category
-            ?: Category.PERIMENOPAUSE
+            ?: Category.BODY
     var pending by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     SectionCard(title = "Perimenopause", icon = Icons.Rounded.LocalFireDepartment) {
         HintText(
@@ -201,9 +201,9 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
             }
         }
         pending?.let { t ->
-            de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level, sudden ->
+            de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level ->
                 haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level, sudden = sudden)), "quick") }
+                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level)), "quick") }
                 android.widget.Toast.makeText(context, "„$t“ erfasst", android.widget.Toast.LENGTH_SHORT).show()
                 pending = null
             })

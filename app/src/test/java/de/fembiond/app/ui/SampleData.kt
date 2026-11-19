@@ -51,14 +51,14 @@ object SampleData {
             val info = CycleEngine.dayInfo(summary0, day)
             val before = info?.daysBeforeNext ?: 99
             val t = day.atTime(20, 0)
-            occ += TermOccurrence(t, ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, if (before <= 6) 2 else 3 + rnd.nextInt(2))
-            occ += TermOccurrence(t, ScaleTerms.ENERGY, Category.SLEEP_ENERGY, if (before <= 6) 2 else 3 + rnd.nextInt(2))
+            occ += TermOccurrence(t, ScaleTerms.SLEEP_QUALITY, Category.BODY, if (before <= 6) 2 else 3 + rnd.nextInt(2))
+            occ += TermOccurrence(t, ScaleTerms.ENERGY, Category.BODY, if (before <= 6) 2 else 3 + rnd.nextInt(2))
             if (before <= 6 && rnd.nextDouble() < 0.8) occ += TermOccurrence(t, "innere Unruhe", Category.MIND, 3 + rnd.nextInt(2))
             if (before <= 5 && rnd.nextDouble() < 0.6) occ += TermOccurrence(t, "gereizt", Category.MIND, 2 + rnd.nextInt(3))
             if ((info?.cycleDay ?: 99) <= 2) occ += TermOccurrence(t, "Krämpfe", Category.BODY, 3 + rnd.nextInt(2))
             if ((info?.cycleDay ?: 99) in 1..3 && rnd.nextDouble() < 0.5) occ += TermOccurrence(t, "Kopfschmerzen", Category.BODY, 3)
-            if (rnd.nextDouble() < 0.15) occ += TermOccurrence(t, "Nachtschweiß", Category.PERIMENOPAUSE, 2)
-            if (rnd.nextDouble() < 0.25) occ += TermOccurrence(day.atTime(14, 0), "Hitzewallung", Category.PERIMENOPAUSE, 2 + rnd.nextInt(2))
+            if (rnd.nextDouble() < 0.15) occ += TermOccurrence(t, "Nachtschweiß", Category.BODY, 2)
+            if (rnd.nextDouble() < 0.25) occ += TermOccurrence(day.atTime(14, 0), "Hitzewallung", Category.BODY, 2 + rnd.nextInt(2))
             if (rnd.nextDouble() < 0.12) occ += TermOccurrence(t, "Arbeitsstress", Category.LIFE, null, Valence.BURDEN)
             if ((info?.cycleDay ?: 0) in 8..14 && rnd.nextDouble() < 0.5) occ += TermOccurrence(t, "ausgeglichen", Category.MIND, 4)
             val ev = events.firstOrNull { e -> val d0 = de.fembiond.app.domain.daysBetween(day, e.date); d0 in 0..3 && !e.date.isAfter(today) }
@@ -73,7 +73,7 @@ object SampleData {
             )
             day = day.plusDays(1)
         }
-        occ += TermOccurrence(today.atTime(9, 15), "müde", Category.SLEEP_ENERGY, 4)
+        occ += TermOccurrence(today.atTime(9, 15), "müde", Category.BODY, 4)
         occ += TermOccurrence(today.atTime(9, 15), "Brustspannen", Category.BODY, 2)
         val entries = occ.groupBy { it.time }.entries.mapIndexed { i, (time, list) -> EntryView(i.toLong(), time, if (time.toLocalDate() == today) "Schlecht geschlafen, aber okay" else "", "text", false, list) }
 

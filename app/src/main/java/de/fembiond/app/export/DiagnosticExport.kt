@@ -74,7 +74,7 @@ object DiagnosticExport {
                             e.terms.forEach { t ->
                                 add(buildJsonObject {
                                     put("term", t.term); put("category", t.category.name)
-                                    t.intensity?.let { put("intensity", it) }; t.valence?.let { put("valence", it.name) }; if (t.sudden) put("sudden", true)
+                                    t.intensity?.let { put("intensity", it) }; t.valence?.let { put("valence", it.name) }
                                 })
                             }
                         }

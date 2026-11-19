@@ -66,7 +66,7 @@ interface FembiondDao {
     suspend fun deleteEntry(id: Long)
 
     @Query(
-        """SELECT e.id AS entryId, e.day, e.minute, t.label, t.category, et.intensity, et.valence, e.backfilled, e.note, et.sudden
+        """SELECT e.id AS entryId, e.day, e.minute, t.label, t.category, et.intensity, et.valence, e.backfilled, e.note
            FROM entries e JOIN entry_terms et ON et.entryId = e.id JOIN terms t ON t.id = et.termId
            ORDER BY e.day, e.minute"""
     )

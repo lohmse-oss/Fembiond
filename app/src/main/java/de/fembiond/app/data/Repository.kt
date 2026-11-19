@@ -54,7 +54,7 @@ data class EntryView(
 )
 
 /** Ein ausgewählter Begriff vor dem Speichern. */
-data class Selection(val label: String, val category: Category, val intensity: Int? = null, val valence: Valence? = null, val sudden: Boolean = false)
+data class Selection(val label: String, val category: Category, val intensity: Int? = null, val valence: Valence? = null)
 
 data class AppData(
     val today: LocalDate,
@@ -124,8 +124,8 @@ class Repository(
         val seeds = Lexicon.entries.filter { it.suggested }.map {
             TermEntity(label = it.label, category = it.category.name, valence = it.valence?.value, builtIn = true)
         } + listOf(
-            TermEntity(label = ScaleTerms.SLEEP_QUALITY, category = Category.SLEEP_ENERGY.name, valence = null, builtIn = true, hidden = true),
-            TermEntity(label = ScaleTerms.ENERGY, category = Category.SLEEP_ENERGY.name, valence = null, builtIn = true, hidden = true),
+            TermEntity(label = ScaleTerms.SLEEP_QUALITY, category = Category.BODY.name, valence = null, builtIn = true, hidden = true),
+            TermEntity(label = ScaleTerms.ENERGY, category = Category.BODY.name, valence = null, builtIn = true, hidden = true),
         )
         dao.insertTerms(seeds)
     }
@@ -182,7 +182,7 @@ class Repository(
         val (termE, synE, rest) = v
         val now = System.currentTimeMillis()
         val terms = termE.mapNotNull { t ->
-            val cat = runCatching { Category.valueOf(t.category) }.getOrNull() ?: return@mapNotNull null
+            val cat = Category.parse(t.category) ?: return@mapNotNull null
             val days = t.lastUsed?.let { (now - it) / 86_400_000L }
             TermInfo(t.id, t.label, cat, Valence.of(t.valence), t.builtIn, t.useCount, t.hidden, TermRanking.score(t.useCount, days, t.builtIn))
         }
@@ -195,7 +195,7 @@ class Repository(
                     .map { VocabItem(it.label, it.label, it.category, it.valence) } +
                 synE.mapNotNull { s ->
                     val t = byId[s.termId] ?: return@mapNotNull null
-                    val cat = runCatching { Category.valueOf(t.category) }.getOrNull() ?: return@mapNotNull null
+                    val cat = Category.parse(t.category) ?: return@mapNotNull null
                     VocabItem(s.phrase, t.label, cat, Valence.of(t.valence))
                 }
             TermParser(items).also { cachedParser = it; cachedParserKey = key }
@@ -243,10 +243,22 @@ class Repository(
         val entryId = dao.insertEntry(
             EntryEntity(day = time.toLocalDate().toEpochDay(), minute = time.hour * 60 + time.minute, note = note.trim(), source = source, backfilled = backfilled)
         )
-        dao.insertEntryTerms(selections.map { EntryTermEntity(entryId = entryId, termId = termId(it, now), intensity = it.intensity, valence = it.valence?.value, sudden = it.sudden) })
+        dao.insertEntryTerms(selections.map { EntryTermEntity(entryId = entryId, termId = termId(it, now), intensity = it.intensity, valence = it.valence?.value) })
     }
 
     suspend fun deleteEntry(id: Long) = dao.deleteEntry(id)
+
+    /** Sicherungen bis 0.6: frühere Kategorien Perimenopause/Schlaf/Blutung in „Körper“ zusammenführen. */
+    internal fun normalizeLegacy(b: BackupData): BackupData {
+        val body = b.terms.filter { it.category == Category.BODY.name }.associateBy { it.label }
+        val remap = b.terms.filter { it.category in Category.LEGACY_BODY && it.label in body }.associate { it.id to body.getValue(it.label).id }
+        val terms = b.terms.filterNot { it.id in remap }.map { if (it.category in Category.LEGACY_BODY) it.copy(category = Category.BODY.name) else it }
+        return b.copy(
+            terms = terms,
+            entryTerms = b.entryTerms.map { remap[it.termId]?.let { id -> it.copy(termId = id) } ?: it },
+            synonyms = b.synonyms.map { remap[it.termId]?.let { id -> it.copy(termId = id) } ?: it },
+        )
+    }
 
     suspend fun learnSynonym(phrase: String, label: String, category: Category) {
         val clean = phrase.trim().lowercase()
@@ -365,7 +377,7 @@ class Repository(
     )
 
     suspend fun restoreJson(text: String) {
-        val b = json.decodeFromString(BackupData.serializer(), text)
+        val b = normalizeLegacy(json.decodeFromString(BackupData.serializer(), text))
         dao.clearAll()
         dao.restorePeriods(b.periods); dao.restoreTerms(b.terms); dao.restoreSynonyms(b.synonyms)
         dao.restoreEntries(b.entries); dao.restoreEntryTerms(b.entryTerms); dao.restorePanics(b.panics)
@@ -390,9 +402,8 @@ private fun MedPhaseEntity.toDomain() = MedicationPhase(
 private fun OccurrenceRow.toOccurrence() = TermOccurrence(
     time = Repository.time(day, minute),
     term = label,
-    category = runCatching { Category.valueOf(category) }.getOrDefault(Category.MIND),
+    category = Category.parse(category) ?: Category.MIND,
     intensity = intensity,
     valence = Valence.of(valence),
     backfilled = backfilled,
-    sudden = sudden,
 )
