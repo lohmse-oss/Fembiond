@@ -105,10 +105,10 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
             if (k in rejected) return@forEach
             val existing = selections[k]
             if (existing == null) {
-                selections[k] = Selection(t.label, t.category, t.intensity, t.valence, t.sudden)
+                selections[k] = Selection(t.label, t.category, t.intensity, t.valence)
                 autoKeys.add(k)
             } else if (k in autoKeys) {
-                selections[k] = existing.copy(intensity = t.intensity ?: existing.intensity, valence = t.valence ?: existing.valence, sudden = t.sudden || existing.sudden)
+                selections[k] = existing.copy(intensity = t.intensity ?: existing.intensity, valence = t.valence ?: existing.valence)
             }
         }
         unknown = result.unknown
