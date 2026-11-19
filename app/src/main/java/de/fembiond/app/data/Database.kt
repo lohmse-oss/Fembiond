@@ -16,15 +16,39 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
+/** 0.7: „schlagartig“ entfällt; frühere Kategorien Perimenopause/Schlaf/Blutung gehen in „Körper“ auf. */
+@androidx.room.DeleteColumn(tableName = "entry_terms", columnName = "sudden")
+class Migration4To5 : androidx.room.migration.AutoMigrationSpec {
+    override fun onPostMigrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        LegacyCategories.STATEMENTS.forEach(db::execSQL)
+    }
+}
+
+/**
+ * Führt Begriffe der früheren Kategorien in „Körper“ zusammen. Gibt es den Begriff dort schon,
+ * werden Einträge und Synonyme auf ihn umgehängt und der alte Begriff entfernt.
+ */
+object LegacyCategories {
+    private const val OLD = "('PERIMENOPAUSE','SLEEP_ENERGY','BLEEDING')"
+    private const val TWIN = "(SELECT b.id FROM terms b JOIN terms o ON o.label = b.label WHERE o.id = %s AND b.category = 'BODY')"
+    private const val HAS_TWIN = "termId IN (SELECT o.id FROM terms o WHERE o.category IN $OLD AND EXISTS (SELECT 1 FROM terms b WHERE b.label = o.label AND b.category = 'BODY'))"
+    val STATEMENTS = listOf(
+        "UPDATE entry_terms SET termId = ${TWIN.format("entry_terms.termId")} WHERE $HAS_TWIN",
+        "UPDATE synonyms SET termId = ${TWIN.format("synonyms.termId")} WHERE $HAS_TWIN",
+        "DELETE FROM terms WHERE category IN $OLD AND EXISTS (SELECT 1 FROM terms b WHERE b.label = terms.label AND b.category = 'BODY')",
+        "UPDATE terms SET category = 'BODY' WHERE category IN $OLD",
+    )
+}
+
 @Database(
     entities = [
         PeriodEntity::class, TermEntity::class, SynonymEntity::class, EntryEntity::class, EntryTermEntity::class,
         PanicEntity::class, PanicTermEntity::class, MedPhaseEntity::class, IntakeEntity::class, GadEntity::class,
         EventEntity::class, MrsEntity::class, ProfileEntity::class,
     ],
-    version = 3,
+    version = 5,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3), AutoMigration(from = 3, to = 4), AutoMigration(from = 4, to = 5, spec = Migration4To5::class)],
 )
 abstract class FembiondDatabase : RoomDatabase() {
     abstract fun dao(): FembiondDao

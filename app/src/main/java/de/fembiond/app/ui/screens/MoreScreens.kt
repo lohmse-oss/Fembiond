@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.rounded.Label
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Event
@@ -83,6 +84,8 @@ fun MoreScreen(data: AppData, nav: NavController) {
             MoreItem(Icons.Rounded.Settings, "Einstellungen", "Darstellung, App-Sperre, Erinnerungen, Grunddaten") { nav.navigate(Routes.SETTINGS) }
         }
         SectionCard {
+            MoreItem(Icons.Rounded.Lightbulb, "Zyklus-Wissen", "Was an welchem Zyklustag typisch ist – Eisprung, Hormone, Laborzeitpunkte") { nav.navigate(Routes.knowledge()) }
+            HorizontalDivider()
             MoreItem(Icons.AutoMirrored.Rounded.MenuBook, "Anleitung", "So funktioniert Fembiond – Schritt für Schritt") { nav.navigate(Routes.guide()) }
             HorizontalDivider()
             MoreItem(Icons.Rounded.Info, "Über Fembiond", "Version ${de.fembiond.app.BuildConfig.VERSION_NAME}, Neuerungen, Updates, Datenschutz") { nav.navigate(Routes.ABOUT) }
@@ -158,53 +161,6 @@ fun SettingsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
             Stepper("Typische Periodenlänge", s.typicalPeriod, 1..12, "Tage") { v -> vm.run { updateSettings { it.copy(typicalPeriod = v) } } }
             HintText("Diese Werte werden nur genutzt, solange zu wenige echte Zyklen erfasst sind.")
         }
-    }
-}
-
-@Composable
-fun TermsScreen(vm: AppViewModel, data: AppData, nav: NavController) {
-    var cat by remember { mutableStateOf(Category.MIND) }
-    var editing by remember { mutableStateOf<TermInfo?>(null) }
-    Screen(title = "Begriffe verwalten", nav = nav) {
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Category.entries.forEach { c ->
-                FilterChip(cat == c, { cat = c }, { Text(c.shortLabel) }, leadingIcon = { Icon(c.icon(), null, Modifier.size(16.dp)) })
-            }
-        }
-        HintText("Sortiert nach Häufigkeit und letzter Nutzung. Ausgeblendete Begriffe erscheinen nicht mehr als Vorschlag, bleiben aber in der Statistik.")
-        SectionCard(title = cat.label, icon = cat.icon()) {
-            val terms = data.terms.filter { it.category == cat && it.label != de.fembiond.app.domain.ScaleTerms.SLEEP_QUALITY && it.label != de.fembiond.app.domain.ScaleTerms.ENERGY }
-                .sortedByDescending { it.score }
-            terms.forEachIndexed { i, t ->
-                if (i > 0) HorizontalDivider()
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { editing = t }) {
-                    Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
-                        Text(t.label, style = MaterialTheme.typography.bodyLarge, color = if (t.hidden) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface)
-                        Text("${t.useCount}× genutzt" + if (t.builtIn) " · Startbegriff" else " · eigener Begriff", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { vm.run { updateTerm(t, hidden = !t.hidden) } }) {
-                        Icon(if (t.hidden) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility, if (t.hidden) "Einblenden" else "Ausblenden")
-                    }
-                }
-            }
-            if (terms.isEmpty()) HintText("Keine Begriffe in dieser Kategorie.")
-        }
-    }
-    editing?.let { t ->
-        var label by remember(t) { mutableStateOf(t.label) }
-        var c by remember(t) { mutableStateOf(t.category) }
-        AlertDialog(
-            onDismissRequest = { editing = null },
-            title = { Text("Begriff bearbeiten") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(label, { label = it }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                    ChipFlow { Category.entries.forEach { k -> FilterChip(c == k, { c = k }, { Text(k.shortLabel) }) } }
-                }
-            },
-            confirmButton = { TextButton(onClick = { vm.run { updateTerm(t, label, c) }; editing = null }) { Text("Speichern") } },
-            dismissButton = { TextButton(onClick = { editing = null }) { Text("Abbrechen") } },
-        )
     }
 }
 

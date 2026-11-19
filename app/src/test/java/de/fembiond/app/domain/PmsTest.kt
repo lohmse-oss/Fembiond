@@ -21,11 +21,11 @@ class PmsTest {
             val p = start.plusDays(k * 28L)
             for (i in 1..5) {
                 val d = p.minusDays(i.toLong())
-                out += occ(d, ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY)
+                out += occ(d, ScaleTerms.SLEEP_QUALITY, Category.BODY)
                 if (withPms) {
                     out += occ(d, "gereizt", Category.MIND)
                     out += occ(d, "Brustspannen", Category.BODY)
-                    if (many) listOf("traurig" to Category.MIND, "Blähungen" to Category.BODY, "erschöpft" to Category.SLEEP_ENERGY)
+                    if (many) listOf("traurig" to Category.MIND, "Blähungen" to Category.BODY, "erschöpft" to Category.BODY)
                         .forEach { (t, c) -> out += occ(d, t, c) }
                 }
             }

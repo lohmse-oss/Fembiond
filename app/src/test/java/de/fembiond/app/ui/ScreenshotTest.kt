@@ -82,6 +82,19 @@ class ScreenshotTest {
     @Test fun mrs() = shot("16_mrs") { de.fembiond.app.ui.screens.MrsScreen(it, data, rememberNavController()) }
     @Config(qualifiers = "w412dp-h1600dp-xxhdpi")
     @Test fun searchScreen() = shot("17_suche") { de.fembiond.app.ui.screens.SearchScreen(data, rememberNavController()) }
+    @Config(qualifiers = "w412dp-h2800dp-xxhdpi")
+    @Test fun knowledge() = shot("18_zyklus_wissen") { de.fembiond.app.ui.screens.KnowledgeScreen(data, rememberNavController()) }
+    @Config(qualifiers = "w412dp-h3400dp-xxhdpi")
+    @Test fun classification() = shot("20_einordnung") {
+        val from = data.today.minusMonths(6)
+        val r = de.fembiond.app.domain.Classification.analyze(data.summary, data.occurrences, data.episodes, data.today, from, data.today, 40)
+        androidx.compose.foundation.layout.Column(
+            androidx.compose.ui.Modifier.padding(16.dp),
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
+        ) { de.fembiond.app.ui.screens.ClassificationCards(r, de.fembiond.app.domain.Category.entries.toSet()) }
+    }
+    @Config(qualifiers = "w412dp-h3000dp-xxhdpi")
+    @Test fun terms() = shot("21_begriffe") { de.fembiond.app.ui.screens.TermsScreen(it, data, rememberNavController()) }
     @Test fun more() = shot("09_mehr") { MoreScreen(data, rememberNavController()) }
     @Test fun export() = shot("10_export") { ExportScreen(it, data, rememberNavController()) }
     @Test fun settings() = shot("11_einstellungen") { SettingsScreen(it, data, rememberNavController()) }

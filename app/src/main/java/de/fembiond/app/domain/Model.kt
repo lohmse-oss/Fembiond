@@ -9,11 +9,8 @@ fun de1(v: Double?): String = String.format(Locale.GERMANY, "%.1f", v ?: 0.0)
 
 /** Kategorien für Begriffe. [label] ist der Anzeigename. */
 enum class Category(val label: String, val shortLabel: String) {
-    MIND("Stimmung & Geist", "Geist"),
+    MIND("Psyche", "Psyche"),
     BODY("Körper", "Körper"),
-    PERIMENOPAUSE("Perimenopause", "Perimeno."),
-    SLEEP_ENERGY("Schlaf & Energie", "Schlaf"),
-    BLEEDING("Blutung", "Blutung"),
     LIFE("Lebensumstände", "Leben"),
     MEDICATION_EFFECT("Medikation & Nebenwirkungen", "Medikation"),
     PANIC_SYMPTOM("Unruhe: Körperliche Anzeichen", "Anzeichen"),
@@ -23,6 +20,18 @@ enum class Category(val label: String, val shortLabel: String) {
 
     /** Kategorien, die im normalen Tageseintrag erscheinen. */
     val isDaily: Boolean get() = this !in setOf(PANIC_SYMPTOM, PANIC_TRIGGER, PANIC_HELP, EVENT_TYPE)
+
+    /** Beschwerden (Psyche/Körper) – Einordnung nach PMS, Periode, Perimenopause erst in der Auswertung. */
+    val isSymptom: Boolean get() = this == MIND || this == BODY
+
+    companion object {
+        /** Frühere Kategorien (bis 0.6), die heute zu „Körper“ gehören. */
+        val LEGACY_BODY = setOf("PERIMENOPAUSE", "SLEEP_ENERGY", "BLEEDING")
+
+        /** Liest gespeicherte Namen – auch aus älteren Versionen und Sicherungen. */
+        fun parse(name: String): Category? =
+            if (name in LEGACY_BODY) BODY else entries.firstOrNull { it.name == name }
+    }
 }
 
 /** Bewertung eines Ereignisses (Lebensumstände). */

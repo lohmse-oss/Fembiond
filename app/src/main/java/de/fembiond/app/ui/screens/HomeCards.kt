@@ -40,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -106,7 +108,15 @@ fun DayPeek(data: AppData, date: LocalDate, cycleDay: Int, nav: NavController, o
             events.forEach { HintText("Ereignis: ${it.displayName}") }
             if (terms.isNotEmpty()) ChipFlow { terms.forEach { TermChip(it, false, null, {}) } }
             if (terms.isEmpty() && maxUnrest == null && events.isEmpty()) HintText(if (date.isAfter(data.today)) "Dieser Tag liegt in der Zukunft." else "Keine Einträge an diesem Tag.")
-            if (!date.isAfter(data.today)) TextButton(onClick = { nav.navigate(Routes.day(date)) }) { Text("Tag öffnen") }
+            val knowledge = de.fembiond.app.domain.CycleKnowledge.forDate(data.summary, data.medications, date, data.today)
+            if (knowledge != null && knowledge.facts.isNotEmpty()) {
+                Text("Im Zyklus typisch", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 4.dp))
+                TypicalFacts(knowledge.facts)
+            }
+            Row {
+                if (!date.isAfter(data.today)) TextButton(onClick = { nav.navigate(Routes.day(date)) }) { Text("Tag öffnen") }
+                TextButton(onClick = { nav.navigate(Routes.knowledge(cycleDay)) }) { Text("Zyklus-Wissen") }
+            }
         }
     }
 }
@@ -139,7 +149,7 @@ fun TrendsCard(data: AppData, nav: NavController) {
     }
     val sleep = scale(ScaleTerms.SLEEP_QUALITY)
     val energy = scale(ScaleTerms.ENERGY)
-    val periTerms = data.occurrences.filter { it.category == Category.PERIMENOPAUSE }.map { it.term }.toSet()
+    val periTerms = de.fembiond.app.domain.Lexicon.PERI_TYPICAL
     val hot = PeriStats.dailyCounts(data.occurrences, periTerms, today, days).map { it.toDouble() }
     if (unrest.all { it == 0.0 } && sleep.all { it == null } && energy.all { it == null } && hot.all { it == 0.0 }) return
     SectionCard(title = "Letzte 14 Tage", icon = Icons.Rounded.ShowChart) {
@@ -173,7 +183,8 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
     fun categoryOf(t: String): Category =
         data.terms.firstOrNull { it.label == t && it.category.isDaily }?.category
             ?: de.fembiond.app.domain.Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category
-            ?: Category.PERIMENOPAUSE
+            ?: Category.BODY
+    var pending by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     SectionCard(title = "Perimenopause", icon = Icons.Rounded.LocalFireDepartment) {
         HintText(
             if (ownCount > 0) "Deine häufigsten Beschwerden – mit einem Tipp erfassen, die Uhrzeit wird gespeichert."
@@ -183,15 +194,19 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
             quick.forEach { t ->
                 val n = PeriStats.countOn(data.occurrences, t, today)
                 androidx.compose.material3.AssistChip(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                        vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t))), "quick") }
-                        android.widget.Toast.makeText(context, "„$t“ erfasst", android.widget.Toast.LENGTH_SHORT).show()
-                    },
+                    onClick = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); pending = t },
                     label = { Text(if (n > 0) "$t ($n)" else t) },
                     leadingIcon = { Icon(Icons.Rounded.Add, null, Modifier.size(16.dp)) },
                 )
             }
+        }
+        pending?.let { t ->
+            de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level ->
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level)), "quick") }
+                android.widget.Toast.makeText(context, "„$t“ erfasst", android.widget.Toast.LENGTH_SHORT).show()
+                pending = null
+            })
         }
         TextButton(onClick = { nav.navigate(Routes.entry()) }) { Text("Weitere Beschwerden eintragen") }
         if (last != null) HintText("MRS zuletzt ${last.date.short()}: ${last.total} Punkte – ${Mrs.severity(last.total)}")

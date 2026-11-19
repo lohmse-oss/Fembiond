@@ -18,7 +18,7 @@ class AnalyticsTest {
             val cs = start.plusDays(c * 28L)
             for (d in 0 until 28) {
                 val date = cs.plusDays(d.toLong())
-                occ += TermOccurrence(date.atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, 3)
+                occ += TermOccurrence(date.atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.BODY, 3)
                 if (d >= 21) occ += TermOccurrence(date.atTime(9, 0), "innere Unruhe", Category.MIND, 4)
                 if (d in 5..7) occ += TermOccurrence(date.atTime(9, 0), "gereizt", Category.MIND, 2)
                 if (d == 25) panics += Episode(time = date.atTime(22, 0), durationMinutes = 10, level = 5,
@@ -91,7 +91,7 @@ class AnalyticsTest {
         val today = p.plusDays(12)
         val summary = CycleEngine.analyze(periods, emptyList(), today)
         val occ = (1..7).map { TermOccurrence(p.minusDays(it.toLong()).atTime(20, 0), "gereizt", Category.MIND, 3) } +
-            (3..9).map { TermOccurrence(p.plusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.SLEEP_ENERGY, 3) }
+            (3..9).map { TermOccurrence(p.plusDays(it.toLong()).atTime(20, 0), ScaleTerms.SLEEP_QUALITY, Category.BODY, 3) }
         val r = Analytics.analyze(AnalysisInput(summary, occ, emptyList(), emptyList(), emptyList(), start, today))
         val pair = r.drspPairs.first { it.periodStart == p }
         assertTrue(pair.counted)

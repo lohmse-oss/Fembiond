@@ -46,15 +46,24 @@ Perimenopause, innere Unruhe und Panikattacken. Zielgerät: Google Pixel 7. Spra
 - **Sortierung:** Kombination aus Häufigkeit und Aktualität (Häufigkeit mit zeitlichem Abklingen).
 
 ### 3.1 Kategorien mit Startbegriffen
+Beschwerden werden nur nach **Psyche** und **Körper** unterschieden. Ob eine Beschwerde zur Periode, zu PMS oder zur Perimenopause passt, ermittelt erst die Auswertung (Abschnitt „Einordnung“) aus dem zeitlichen Muster – die eintragende Person muss das nicht einschätzen.
+
 | Kategorie | Startbegriffe |
 |---|---|
-| Stimmung / Geist | gereizt, traurig, ängstlich, angespannt, innere Unruhe, überfordert, Stimmungsschwankungen, ausgeglichen, fröhlich, konzentrationsschwach, vergesslich |
-| Körper | Krämpfe, Kopfschmerzen, Migräne, Brustspannen, Blähungen, Rückenschmerzen, Gelenkschmerzen, Herzklopfen, Übelkeit, Hautunreinheiten |
-| Perimenopause | Hitzewallung, Nachtschweiß, Herzrasen, Scheidentrockenheit |
-| Schlaf & Energie | müde, erschöpft, energiegeladen, Einschlafprobleme, Durchschlafprobleme, schlecht geschlafen, gut geschlafen |
-| Blutung | siehe 2.1 |
+| Psyche | gereizt, traurig, ängstlich, angespannt, innere Unruhe, überfordert, Stimmungsschwankungen, ausgeglichen, fröhlich, konzentrationsschwach, vergesslich, Wortfindungsstörungen, Wutausbrüche … |
+| Körper | Krämpfe, Kopfschmerzen, Migräne, Brustspannen, Blähungen, Rückenschmerzen, Gelenkschmerzen, Herzklopfen, Übelkeit, Hautunreinheiten, Hitzewallung, Nachtschweiß, Herzrasen, Scheidentrockenheit, müde, erschöpft, Einschlafprobleme, Durchschlafprobleme, Blutung (siehe 2.1) … |
 | Lebensumstände | Arbeit, Beziehung & Familie, Soziales, Reisen, Krankheit/Infekt, Sport, Alkohol, Koffein, Termine (mit Bewertung belastend/neutral/positiv) |
 | Medikation / Nebenwirkungen | Schläfrigkeit, Schwindel, Stimmungsveränderung |
+
+Jede Beschwerde kann optional eine Stärke 1–5 erhalten. Beim Anlegen eigener Begriffe prüft die App auf ähnliche vorhandene Begriffe (Tippfehler, Wortform, Zusammensetzungen, Synonyme). Unter „Begriffe verwalten“ lassen sich alle Vorschlagslisten bereinigen: umbenennen, Kategorie ändern, ausblenden, zusammenführen, unbenutzte löschen.
+
+### 3.2 Einordnung in der Auswertung
+| Gruppe | Kriterium |
+|---|---|
+| Übliche Periodenbeschwerden | ≥ 50 % der Tage während der Blutung (mind. doppelt so häufig wie erwartet), Stärke meist ≤ 3 |
+| Auffällig – ärztlich abklären | Regelschmerzen Stärke 4–5 in ≥ 2 Zyklen; Unterleibsschmerzen an ≥ 3 Tagen außerhalb der Periode; Blutung > 8 Tage; sehr starke Blutung in ≥ 2 Zyklen; Zwischenblutungen; ≥ 2 Zyklen < 21 oder > 35 Tage (FIGO 2018, ACOG, NICE NG88) |
+| PMS-Muster | gehäuft in den 5 Tagen vor der Periode, an Tag 4–10 höchstens halb so oft, in ≥ 2 Zyklen (ACOG) |
+| Spricht eher für Perimenopause | ohne Häufung in einer Zyklusphase, zunehmend im Zeitraum oder in der Forschung typisch (z. B. Hitzewallung, Nachtschweiß); dazu STRAW+10-Stadium, Zyklusschwankung und Alter |
 
 Grundlagen: DRSP (Daily Record of Severity of Problems), Menopause Rating Scale (MRS), STRAW+10.
 

@@ -18,7 +18,7 @@ class TermParserTest {
     fun spokenSentenceIsRecognized() {
         val r = parser.parse("Bin heute ziemlich müde, hab seit Mittag Kopfweh und so eine innere Unruhe, so Stärke drei.")
         assertEquals(4, r.find("müde")?.intensity)
-        assertEquals(Category.SLEEP_ENERGY, r.find("müde")?.category)
+        assertEquals(Category.BODY, r.find("müde")?.category)
         assertEquals(Category.BODY, r.find("Kopfschmerzen")?.category)
         assertEquals(3, r.find("innere Unruhe")?.intensity)
         assertEquals(Category.MIND, r.find("innere Unruhe")?.category)

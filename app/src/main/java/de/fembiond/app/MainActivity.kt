@@ -159,6 +159,8 @@ object Routes {
     const val TERMS = "terms"
     const val GAD = "gad"
     const val HISTORY = "history"
+    const val KNOWLEDGE = "knowledge?day={day}"
+    fun knowledge(day: Int? = null) = "knowledge?day=${day ?: -1}"
 
     fun entry(day: LocalDate? = null, note: Boolean = false) = "entry?day=${day?.toEpochDay() ?: -1}&note=$note"
     fun day(d: LocalDate) = "day/${d.toEpochDay()}"
@@ -228,6 +230,9 @@ private fun AppNav(vm: AppViewModel, data: AppData, startRoute: String?, onRoute
             composable(Routes.SEARCH) { de.fembiond.app.ui.screens.SearchScreen(data, nav) }
             composable(Routes.MRS) { de.fembiond.app.ui.screens.MrsScreen(vm, data, nav) }
             composable(Routes.WEEKLY) { de.fembiond.app.ui.screens.WeeklyReviewScreen(data, nav) }
+            composable(Routes.KNOWLEDGE) { b ->
+                de.fembiond.app.ui.screens.KnowledgeScreen(data, nav, b.arguments?.getString("day")?.toIntOrNull()?.takeIf { it > 0 })
+            }
             composable(Routes.ABOUT) { de.fembiond.app.ui.screens.AboutScreen(data, nav) }
             composable(Routes.GUIDE) { b -> de.fembiond.app.ui.screens.GuideScreen(nav, b.arguments?.getString("open")?.takeIf { it.isNotBlank() }) }
             composable(Routes.DAY) { b ->

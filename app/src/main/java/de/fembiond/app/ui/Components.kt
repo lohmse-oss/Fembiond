@@ -32,6 +32,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.LocalFireDepartment
@@ -88,9 +89,6 @@ import kotlin.math.sin
 fun Category.icon(): ImageVector = when (this) {
     Category.MIND -> Icons.Rounded.Psychology
     Category.BODY -> Icons.Rounded.Accessibility
-    Category.PERIMENOPAUSE -> Icons.Rounded.LocalFireDepartment
-    Category.SLEEP_ENERGY -> Icons.Rounded.Bedtime
-    Category.BLEEDING -> Icons.Rounded.WaterDrop
     Category.LIFE -> Icons.Rounded.Groups
     Category.MEDICATION_EFFECT -> Icons.Rounded.Medication
     Category.PANIC_SYMPTOM -> Icons.Rounded.MonitorHeart
@@ -166,6 +164,42 @@ fun IntensitySelector(value: Int?, onChange: (Int?) -> Unit, modifier: Modifier 
     }
 }
 
+/** Stärke 1–5 (leicht bis stark) – für jeden erfassten Sachverhalt. */
+@Composable
+fun StrengthSelector(intensity: Int?, onIntensity: (Int?) -> Unit, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        IntensitySelector(intensity, onIntensity)
+        Text(
+            intensity?.let { "Stärke $it – ${STRENGTH_LABELS[it - 1]}" } ?: "Stärke optional: 1 leicht … 5 stark",
+            style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+val STRENGTH_LABELS = listOf("leicht", "spürbar", "mittel", "deutlich", "stark")
+
+/** Nach dem Antippen eines Begriffs: Stärke wählen und speichern – „Ohne Stärke“ speichert sofort. */
+@Composable
+fun StrengthPrompt(term: String, onSave: (intensity: Int?) -> Unit, onCancel: () -> Unit) {
+    var intensity by androidx.compose.runtime.remember(term) { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    androidx.compose.material3.Card(
+        Modifier.fillMaxWidth(),
+        colors = androidx.compose.material3.CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        androidx.compose.foundation.layout.Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("„$term“ – wie stark?", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                androidx.compose.material3.IconButton(onClick = onCancel) { androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Close, "Abbrechen") }
+            }
+            StrengthSelector(intensity, { intensity = it })
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                androidx.compose.material3.OutlinedButton(onClick = { onSave(null) }, modifier = Modifier.weight(1f)) { Text("Ohne Stärke") }
+                androidx.compose.material3.Button(onClick = { onSave(intensity) }, enabled = intensity != null, modifier = Modifier.weight(1f)) { Text("Speichern") }
+            }
+        }
+    }
+}
+
 /** Kleine Intensitätsanzeige innerhalb eines Chips. */
 @Composable
 fun IntensityPips(value: Int, color: Color) {
@@ -200,6 +234,7 @@ fun TermChip(
                     Spacer(Modifier.width(8.dp))
                     IntensityPips(intensity, MaterialTheme.colorScheme.onSecondaryContainer)
                 }
+
             }
         },
         leadingIcon = when {
