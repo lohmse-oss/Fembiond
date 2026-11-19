@@ -39,5 +39,13 @@ class MigrationTest {
         v3.query("SELECT COUNT(*) FROM events").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
         v3.execSQL("INSERT INTO mrs (day, answers, total) VALUES (20020, '1,1,1,1,1,1,1,1,1,1,1', 11)")
         v3.execSQL("INSERT INTO profile (id, name, birthDate) VALUES (1, 'Test', 6000)")
+        v3.execSQL("INSERT INTO terms (id, label, category, valence, builtIn, useCount, lastUsed, hidden) VALUES (1, 'Beinschmerzen', 'BODY', NULL, 0, 1, 0, 0)")
+        v3.execSQL("INSERT INTO entries (id, day, minute, note, source, backfilled) VALUES (1, 20030, 600, '', 'text', 0)")
+        v3.execSQL("INSERT INTO entry_terms (entryId, termId, intensity, valence) VALUES (1, 1, 3, NULL)")
+        v3.close()
+        val v4 = helper.runMigrationsAndValidate("test.db", 4, true)
+        v4.query("SELECT intensity, sudden FROM entry_terms").use { c ->
+            assertTrue(c.moveToFirst()); assertEquals(3, c.getInt(0)); assertEquals(0, c.getInt(1))
+        }
     }
 }

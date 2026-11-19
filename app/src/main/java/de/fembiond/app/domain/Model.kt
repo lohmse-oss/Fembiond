@@ -97,6 +97,8 @@ data class TermOccurrence(
     val intensity: Int? = null,
     val valence: Valence? = null,
     val backfilled: Boolean = false,
+    /** Schlagartig aufgetreten. */
+    val sudden: Boolean = false,
 ) {
     val date: LocalDate get() = time.toLocalDate()
 }

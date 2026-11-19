@@ -17,6 +17,8 @@ data class ParsedTerm(
     val intensity: Int?,
     val valence: Valence?,
     val matchedText: String,
+    /** Im selben Satzteil als „schlagartig“/„plötzlich“ beschrieben. */
+    val sudden: Boolean = false,
 )
 
 data class ParseResult(
@@ -86,13 +88,16 @@ class TermParser(vocabulary: List<VocabItem>) {
             val valence = if (h.item.category == Category.LIFE) {
                 valenceHint(folded, segOf, segment) ?: h.item.valence
             } else null
+            val sudden = folded.indices.any { k ->
+                segOf[k] == segment && (folded[k] in SUDDEN_WORDS || (folded[k] == "auf" && folded.getOrNull(k + 1) == "einmal"))
+            }
             val text = words.subList(h.start, h.end).joinToString(" ")
             val existing = result.indexOfFirst { it.label == h.item.label && it.category == h.item.category }
             if (existing >= 0) {
                 val e = result[existing]
-                result[existing] = e.copy(intensity = maxOfNullable(e.intensity, intensity))
+                result[existing] = e.copy(intensity = maxOfNullable(e.intensity, intensity), sudden = e.sudden || sudden)
             } else {
-                result += ParsedTerm(h.item.label, h.item.category, intensity, valence, text)
+                result += ParsedTerm(h.item.label, h.item.category, intensity, valence, text, sudden)
             }
         }
 
@@ -105,7 +110,7 @@ class TermParser(vocabulary: List<VocabItem>) {
         }
         for (k in words.indices) {
             val w = folded[k]
-            val isContent = !consumed[k] && w.length >= 4 && w !in STOP && w !in INTENSITY_WORDS && w !in NUMBER_WORDS &&
+            val isContent = !consumed[k] && w.length >= 4 && w !in STOP && w !in INTENSITY_WORDS && w !in SUDDEN_WORDS && w != "einmal" && w !in NUMBER_WORDS &&
                 w !in NEGATIONS && w.none { it.isDigit() }
             if (isContent && (run.isEmpty() || runSeg == segOf[k])) {
                 run += words[k]; runSeg = segOf[k]
@@ -187,6 +192,8 @@ class TermParser(vocabulary: List<VocabItem>) {
             Regex("[\\p{L}\\p{N}]+").findAll(s.lowercase()).map { it.value }.toList()
 
         /** Kleinschreibung, Umlaute vereinfachen – macht Tippfehler und Spracheingabe robuster. */
+        val SUDDEN_WORDS = setOf("schlagartig", "schlagartige", "schlagartiger", "plotzlich", "plotzliche", "plotzlicher", "abrupt", "abrupte", "unvermittelt")
+
         fun fold(s: String): String = s.lowercase()
             .replace("ä", "a").replace("ö", "o").replace("ü", "u").replace("ß", "ss")
 

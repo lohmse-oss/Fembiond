@@ -40,6 +40,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -182,6 +184,7 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
         data.terms.firstOrNull { it.label == t && it.category.isDaily }?.category
             ?: de.fembiond.app.domain.Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category
             ?: Category.PERIMENOPAUSE
+    var pending by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf<String?>(null) }
     SectionCard(title = "Perimenopause", icon = Icons.Rounded.LocalFireDepartment) {
         HintText(
             if (ownCount > 0) "Deine häufigsten Beschwerden – mit einem Tipp erfassen, die Uhrzeit wird gespeichert."
@@ -191,15 +194,19 @@ fun PeriCard(vm: AppViewModel, data: AppData, nav: NavController) {
             quick.forEach { t ->
                 val n = PeriStats.countOn(data.occurrences, t, today)
                 androidx.compose.material3.AssistChip(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                        vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t))), "quick") }
-                        android.widget.Toast.makeText(context, "„$t“ erfasst", android.widget.Toast.LENGTH_SHORT).show()
-                    },
+                    onClick = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); pending = t },
                     label = { Text(if (n > 0) "$t ($n)" else t) },
                     leadingIcon = { Icon(Icons.Rounded.Add, null, Modifier.size(16.dp)) },
                 )
             }
+        }
+        pending?.let { t ->
+            de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level, sudden ->
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level, sudden = sudden)), "quick") }
+                android.widget.Toast.makeText(context, "„$t“ erfasst", android.widget.Toast.LENGTH_SHORT).show()
+                pending = null
+            })
         }
         TextButton(onClick = { nav.navigate(Routes.entry()) }) { Text("Weitere Beschwerden eintragen") }
         if (last != null) HintText("MRS zuletzt ${last.date.short()}: ${last.total} Punkte – ${Mrs.severity(last.total)}")

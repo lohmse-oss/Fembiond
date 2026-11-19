@@ -112,23 +112,28 @@ fun QuickSymptomSheet(vm: AppViewModel, data: AppData, nav: NavController, onDis
     fun categoryOf(t: String): Category =
         data.terms.firstOrNull { it.label == t && it.category.isDaily }?.category
             ?: Lexicon.entries.firstOrNull { it.label == t && it.category.isDaily }?.category ?: Category.PERIMENOPAUSE
+    var pending by remember { mutableStateOf<String?>(null) }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Column(
             Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text("Beschwerde erfassen", style = MaterialTheme.typography.titleLarge)
-            HintText("Ein Tipp speichert die Beschwerde mit der aktuellen Uhrzeit. Du kannst mehrere nacheinander antippen.")
+            HintText("Beschwerde antippen, Stärke wählen (optional, auch „schlagartig“) und speichern. Die Uhrzeit wird mitgespeichert; mehrere nacheinander sind möglich.")
+            pending?.let { t ->
+                de.fembiond.app.ui.StrengthPrompt(t, onCancel = { pending = null }, onSave = { level, sudden ->
+                    haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                    vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t), level, sudden = sudden)), "quick") }
+                    Toast.makeText(context, "„$t“ erfasst", Toast.LENGTH_SHORT).show()
+                    pending = null
+                })
+            }
             @Composable
             fun chips(list: List<String>) = ChipFlow {
                 list.forEach { t ->
                     val n = PeriStats.countOn(data.occurrences, t, data.today)
                     AssistChip(
-                        onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                            vm.run { saveEntry(LocalDateTime.now(), "", listOf(Selection(t, categoryOf(t))), "quick") }
-                            Toast.makeText(context, "„$t“ erfasst", Toast.LENGTH_SHORT).show()
-                        },
+                        onClick = { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); pending = t },
                         label = { Text(if (n > 0) "$t ($n)" else t) },
                         leadingIcon = { Icon(Icons.Rounded.Add, null, Modifier.size(16.dp)) },
                     )

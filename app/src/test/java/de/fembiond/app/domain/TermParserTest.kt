@@ -85,4 +85,11 @@ class TermParserTest {
         assertTrue(TermRanking.score(10, 1, false) > TermRanking.score(10, 120, false))
         assertTrue(TermRanking.score(5, 1, false) > TermRanking.score(0, null, true))
     }
+
+    @Test
+    fun detectsSuddenOnset() {
+        val r = parser.parse("Schlagartig starke Kopfschmerzen, außerdem müde")
+        assertTrue(r.terms.first { it.label == "Kopfschmerzen" }.sudden)
+        assertFalse(r.terms.first { it.label == "müde" }.sudden)
+    }
 }

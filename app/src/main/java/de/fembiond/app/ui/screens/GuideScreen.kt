@@ -115,6 +115,8 @@ object Guide {
 - Tippe auf **Wie geht es dir gerade?** und schreibe oder sprich frei, z. B. „ziemlich müde, Kopfweh, innere Unruhe Stärke 3“.
 - Die App erkennt Begriffe automatisch und ordnet sie Kategorien zu – auch Umgangssprache („Kopfweh“), Tippfehler und Verneinungen („keine Kopfschmerzen“).
 - Wörter wie „leicht“, „ziemlich“, „extrem“ oder „Stärke drei“ setzen die **Intensität 1–5**. Du kannst sie unter „Erfasst – bitte prüfen“ anpassen.
+- Für plötzlich einsetzende Beschwerden gibt es **„schlagartig“**. Die App erkennt es auch selbst an Wörtern wie „schlagartig“, „plötzlich“ oder „auf einmal“.
+- Bei Ein-Tipp-Beschwerden (Plus-Menü, Karte Perimenopause) fragt die App nach dem Antippen direkt „Wie stark?“. „Ohne Stärke“ speichert sofort.
 - **Nicht erkannte Wörter** antippen, um sie als eigenen Begriff zu speichern oder einem vorhandenen zuzuordnen. Die App merkt sich das.
 - Unter den Kategorien findest du Vorschläge als Chips – häufig und zuletzt Genutztes steht vorne.
 - Über das Datum unten links trägst du für vergangene Tage nach.

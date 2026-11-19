@@ -63,6 +63,8 @@ data class EntryTermEntity(
     val termId: Long,
     val intensity: Int?,
     val valence: Int?,
+    /** Schlagartig aufgetreten. */
+    @androidx.room.ColumnInfo(defaultValue = "0") val sudden: Boolean = false,
 )
 
 @Serializable
@@ -147,6 +149,7 @@ data class OccurrenceRow(
     val valence: Int?,
     val backfilled: Boolean,
     val note: String,
+    val sudden: Boolean = false,
 )
 
 data class PanicTermRow(val panicId: Long, val label: String, val category: String)

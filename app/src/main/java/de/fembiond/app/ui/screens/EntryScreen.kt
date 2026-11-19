@@ -105,10 +105,10 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
             if (k in rejected) return@forEach
             val existing = selections[k]
             if (existing == null) {
-                selections[k] = Selection(t.label, t.category, t.intensity, t.valence)
+                selections[k] = Selection(t.label, t.category, t.intensity, t.valence, t.sudden)
                 autoKeys.add(k)
             } else if (k in autoKeys) {
-                selections[k] = existing.copy(intensity = t.intensity ?: existing.intensity, valence = t.valence ?: existing.valence)
+                selections[k] = existing.copy(intensity = t.intensity ?: existing.intensity, valence = t.valence ?: existing.valence, sudden = t.sudden || existing.sudden)
             }
         }
         unknown = result.unknown
@@ -199,7 +199,7 @@ fun EntryScreen(vm: AppViewModel, data: AppData, nav: NavController, day: LocalD
                             }) { Icon(Icons.Rounded.Close, "Entfernen") }
                         }
                         if (sel.category != Category.BLEEDING) {
-                            IntensitySelector(sel.intensity, { selections[k] = sel.copy(intensity = it) }, Modifier.padding(start = 28.dp))
+                            de.fembiond.app.ui.StrengthSelector(sel.intensity, sel.sudden, { selections[k] = sel.copy(intensity = it) }, { selections[k] = sel.copy(sudden = it) }, Modifier.padding(start = 28.dp))
                         }
                         if (sel.category == Category.LIFE) {
                             Row(Modifier.padding(start = 28.dp, top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {

@@ -54,7 +54,7 @@ data class EntryView(
 )
 
 /** Ein ausgewählter Begriff vor dem Speichern. */
-data class Selection(val label: String, val category: Category, val intensity: Int? = null, val valence: Valence? = null)
+data class Selection(val label: String, val category: Category, val intensity: Int? = null, val valence: Valence? = null, val sudden: Boolean = false)
 
 data class AppData(
     val today: LocalDate,
@@ -243,7 +243,7 @@ class Repository(
         val entryId = dao.insertEntry(
             EntryEntity(day = time.toLocalDate().toEpochDay(), minute = time.hour * 60 + time.minute, note = note.trim(), source = source, backfilled = backfilled)
         )
-        dao.insertEntryTerms(selections.map { EntryTermEntity(entryId = entryId, termId = termId(it, now), intensity = it.intensity, valence = it.valence?.value) })
+        dao.insertEntryTerms(selections.map { EntryTermEntity(entryId = entryId, termId = termId(it, now), intensity = it.intensity, valence = it.valence?.value, sudden = it.sudden) })
     }
 
     suspend fun deleteEntry(id: Long) = dao.deleteEntry(id)
@@ -394,4 +394,5 @@ private fun OccurrenceRow.toOccurrence() = TermOccurrence(
     intensity = intensity,
     valence = Valence.of(valence),
     backfilled = backfilled,
+    sudden = sudden,
 )
