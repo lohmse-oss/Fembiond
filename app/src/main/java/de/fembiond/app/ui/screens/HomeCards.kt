@@ -25,6 +25,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Add
@@ -279,29 +282,34 @@ fun TodayCarousel(data: AppData, nav: NavController) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Heute wichtig" + if (items.size > 1) " · ${items.size}" else "", style = MaterialTheme.typography.titleMedium)
         if (items.size == 1) TodayCard(items.first(), Modifier.fillMaxWidth())
-        else androidx.compose.material3.carousel.HorizontalUncontainedCarousel(
-            state = androidx.compose.material3.carousel.rememberCarouselState { items.size },
-            itemWidth = 296.dp,
-            itemSpacing = 10.dp,
-            modifier = Modifier.fillMaxWidth().height(196.dp),
-        ) { i -> TodayCard(items[i], Modifier.fillMaxSize().maskClip(MaterialTheme.shapes.extraLarge)) }
+        else {
+            // Wischbare Karten: jede vollständig sichtbar, Text bricht um, alle gleich hoch
+            val width = (androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp - 32.dp - 28.dp).coerceAtMost(340.dp)
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(androidx.compose.foundation.rememberScrollState())
+                    .height(androidx.compose.foundation.layout.IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                items.forEach { item -> TodayCard(item, Modifier.width(width).fillMaxHeight()) }
+            }
+        }
     }
 }
 
 @Composable
 private fun TodayCard(item: TodayItem, modifier: Modifier) {
     Card(
-        modifier.height(196.dp),
+        modifier.heightIn(min = 150.dp),
         shape = MaterialTheme.shapes.extraLarge,
         colors = CardDefaults.cardColors(containerColor = if (item.emphasized) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer),
     ) {
-        Column(Modifier.padding(18.dp).fillMaxSize(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
                 Icon(item.icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.width(8.dp))
-                Text(item.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(item.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
             }
-            Text(item.text, style = MaterialTheme.typography.bodyMedium, maxLines = 4, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(item.text, style = MaterialTheme.typography.bodyMedium)
             item.action?.let { TextButton(onClick = item.onAction, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) { Text(it) } }
         }
     }

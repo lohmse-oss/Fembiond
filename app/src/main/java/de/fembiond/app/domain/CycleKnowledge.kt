@@ -98,8 +98,8 @@ object CycleKnowledge {
             ov - 1, ov + 1, FactKind.BODY, "Merck Manual: Mittelschmerz",
         )
         add(
-            "luteal", "Lutealphase: Progesteron wirkt",
-            "Der Gelbkörper bildet Progesteron. Die Basaltemperatur steigt nach dem Eisprung um etwa 0,2–0,5 °C und bleibt bis zur Periode erhöht. Progesteron kann müde machen und den Schlaf vertiefen, aber auch Brustspannen und Blähungen begünstigen.",
+            "luteal", "Lutealphase: körpereigenes Progesteron",
+            "Nach dem Eisprung bildet der Gelbkörper im Eierstock körpereigenes Progesteron – unabhängig von einer Einnahme. Die Basaltemperatur steigt nach dem Eisprung um etwa 0,2–0,5 °C und bleibt bis zur Periode erhöht. Es kann müde machen und den Schlaf vertiefen, aber auch Brustspannen und Blähungen begünstigen.",
             ov + 2, l, FactKind.HORMONE, "Speroff: Clinical Gynecologic Endocrinology and Infertility",
         )
         add(
